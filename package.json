@@ -26,6 +26,6 @@
     "xlsx": "^0.18.5"
   },
   "bin": {
-    "jenkit": "./package/mycoolconsoleapp.js"
+    "shortstack": "./package/shortstack.js"
   }
 }

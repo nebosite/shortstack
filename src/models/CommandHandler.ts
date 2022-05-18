@@ -37,7 +37,7 @@ export class CommandHandler
             this.currentBranch = status.current;
         }
         catch(error) {
-            throw new ShortStackError(`Git error: ${error.message}`)    
+            throw new ShortStackError(`Git error: ${(error as any).message}`)    
         }
 
         if(!this.currentBranch) throw new ShortStackError("ShortStack must be run in a git repo directory.")

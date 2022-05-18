@@ -1,4 +1,23 @@
 TODO
+    [ ] ss new (stackName) [(startingBranch)]
+        Creates stackName/0 that tracks startingBranch
+        Creates stackName/1 that tracks stackName/0
+        Throws error if there are untracked changes
+        
+    [ ] ss push
+        pushes up commits
+        generates a PR if there isn't one already
+        updates PR description with pushed commits
+        
+    [ ] ss next 
+        performs ss push
+        creates next level of the stack
+        error if we are not at the last level already
+
+    [ ] ss merge
+        merges the entire stack (possibly using rebase)
+
+
     [x] help - show help
     [x] new - start a new stack
         [ ] If current branch is not ahead of previous branch, don't create a new one. 
@@ -16,6 +35,8 @@ TODO
     [ ] go - go to a stack
 
 NEW
+    [ ] Set up for debugging, document it
+    
     [ ] Command to open the PR on the web
     [ ] test - run ad-hoc test
     [ ] abandon
