@@ -1,4 +1,4 @@
-import { CommandLineOptionsClass, positionalParameter, subCommand, flagParameter } from "./Helpers/CommandLineHelper";
+import { CommandLineOptionsClass, positionalParameter, subCommand } from "./Helpers/CommandLineHelper";
 
 abstract class SubOptions extends CommandLineOptionsClass
 {

@@ -20,7 +20,8 @@ export class CommandHandler
         const options: SimpleGitOptions = {
             baseDir: process.cwd(),
             binary: 'git',
-            maxConcurrentProcesses: 6,
+            maxConcurrentProcesses: 6,    
+            config: []
         };
         this._git = simpleGit(options);
 

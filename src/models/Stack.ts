@@ -1,4 +1,4 @@
-import { SimpleGit, BranchSummary } from "simple-git";
+import { SimpleGit } from "simple-git";
 import { ShortStackError } from "./CommandHandler";
 
 //------------------------------------------------------------------------------

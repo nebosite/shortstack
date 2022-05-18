@@ -10,8 +10,7 @@
             "name": "Launch Program",
             "program": "${workspaceFolder}/src/index.ts",
             "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": ["${workspaceFolder}/out/**/*.js"],
-            "args": ["/?"]
+            "outFiles": ["${workspaceFolder}/out/**/*.js"]
         },
         {
             "type": "chrome",
