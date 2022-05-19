@@ -1,4 +1,4 @@
-import { CommandLineOptionsClass, positionalParameter, subCommand } from "./Helpers/CommandLineHelper";
+import { CommandLineOptionsClass, flagParameter, positionalParameter, subCommand } from "./Helpers/CommandLineHelper";
 
 abstract class SubOptions extends CommandLineOptionsClass
 {
@@ -55,6 +55,9 @@ export class ShortStackOptions extends CommandLineOptionsClass {
         commands: [ShortStackNewOptions, ShortStackGoOptions, ShortStackListOptions]
     })
     action?: CommandLineOptionsClass;
+
+    @flagParameter({description: "Pause so you can attach a debugger", required: false})
+    debug = false;
 
     //------------------------------------------------------------------------------
     // validate

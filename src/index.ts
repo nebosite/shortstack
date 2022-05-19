@@ -2,6 +2,7 @@ import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions } from "
 import chalk from "chalk"
 import { CommandHandler, ShortStackError } from "./models/CommandHandler";
 import { CreateOptions } from "./Helpers/CommandLineHelper";
+import { UserInput } from "./UserInput";
 
 //------------------------------------------------------------------------------
 // main
@@ -15,6 +16,10 @@ async function main() {
 
     try {
         const options = CreateOptions(ShortStackOptions);
+        if(options.debug) {
+            const input = new UserInput();
+            await input.getUserInput(`Pausing so you can attach a debugger. Press [Enter] when ready...`)
+        }
       
         if(options.showHelp)
         {
@@ -47,7 +52,7 @@ async function main() {
             console.error(chalk.redBright(error.message));
         }
         else {
-            console.error(chalk.redBright(error.stack));
+            console.error(chalk.redBright((error as any).stack));
         }
         return 1;
     } 
