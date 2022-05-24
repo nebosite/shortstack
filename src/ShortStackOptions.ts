@@ -41,6 +41,14 @@ export class ShortStackListOptions extends SubOptions {
     shortDescription= `List available stacks`
 }
 
+//------------------------------------------------------------------------------
+// status command options
+//------------------------------------------------------------------------------
+export class ShortStackStatusOptions extends SubOptions { 
+    commandName= "status"
+    shortDescription= "Show the status of the current stack"
+}
+
 
 //------------------------------------------------------------------------------
 // main program options
@@ -52,7 +60,7 @@ export class ShortStackOptions extends CommandLineOptionsClass {
 
     @subCommand({
         description: "A Shortstack action.  Use 'shortstack help actions' to see available actions.",
-        commands: [ShortStackNewOptions, ShortStackGoOptions, ShortStackListOptions]
+        commands: [ShortStackNewOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackStatusOptions]
     })
     action?: CommandLineOptionsClass;
 

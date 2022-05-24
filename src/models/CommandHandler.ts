@@ -1,4 +1,4 @@
-import { ShortStackListOptions, ShortStackNewOptions } from "../ShortStackOptions";
+import { ShortStackListOptions, ShortStackNewOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo} from "./Stack"
 import chalk from "chalk";
@@ -6,14 +6,14 @@ import chalk from "chalk";
 export class ShortStackError extends Error{ }
 export class CommandHandler 
 {
-    private _logLine = (text:string) => {};
+    private _logLine = (text?:string|undefined) => {};
     private _git: SimpleGit; 
     currentBranch: String | null = null;
 
     //------------------------------------------------------------------------------
     // ctor
     //------------------------------------------------------------------------------
-    constructor(logLine: (text: string) => void)
+    constructor(logLine: (text: string | undefined) => void)
     {
         this._logLine = logLine;
 
@@ -121,6 +121,43 @@ export class CommandHandler
                 {
                     if(level.levelNumber == 0) continue;
                     this._logLine(chalk.gray(`        ${level.levelNumber.toString().padStart(3,"0")} ${level.label}`))
+                }
+            }
+        }
+    }
+
+    //------------------------------------------------------------------------------
+    // status - show current stack status
+    //------------------------------------------------------------------------------
+    async status(options: ShortStackStatusOptions) 
+    {
+        const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
+
+        const unsettledItems = await stackInfo.getUnsettledItems();
+        if(unsettledItems) {
+            this._logLine(chalk.yellow("There are unsettled items:"))
+            unsettledItems.forEach(i => this._logLine(chalk.yellow(`    ${i}`)))
+            this._logLine();
+        }
+        
+        if(!stackInfo.current) {
+            this._logLine("You are not currently editing a stack.");
+            this._logLine("    To see a list of available stacks:                 shortstack list");
+            this._logLine("    To resume editing an existing stack:               shortstack go [stackname]");
+            this._logLine("    To start a new stack off the current git branch:   shortstack new [stackname]");
+        }
+        else {
+            const stack = stackInfo.current.parent;
+            this._logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.parentBranch)})`)
+            for(const level of stack.levels)
+            {
+                if(level.levelNumber == 0) continue;
+                const levelText = `${level.levelNumber.toString().padStart(3,"0")} ${level.label}`
+                if(level.levelNumber === stackInfo.current.levelNumber) {
+                    this._logLine(chalk.whiteBright("    --> " + levelText))
+                }
+                else {
+                    this._logLine(chalk.gray       ("        " + levelText))
                 }
             }
         }

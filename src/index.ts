@@ -1,4 +1,4 @@
-import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions } from "./ShortStackOptions";
+import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions, ShortStackStatusOptions } from "./ShortStackOptions";
 import chalk from "chalk"
 import { CommandHandler, ShortStackError } from "./models/CommandHandler";
 import { CreateOptions } from "./Helpers/CommandLineHelper";
@@ -44,7 +44,8 @@ async function main() {
             case "new":  await handler.new(options.action! as ShortStackNewOptions); break;
             case "go":  console.log("GO"); break;
             case "list":  await handler.list(options.action! as ShortStackListOptions); break;
-            default: throw Error(`Unknown action: ${options.action}`)
+            case "status": await handler.status(options.action! as ShortStackStatusOptions); break;
+            default: throw new ShortStackError(`Unknown action: ${options.action.commandName}`)
         }
         return 0;
     } catch (error) {

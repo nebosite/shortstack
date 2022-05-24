@@ -1,8 +1,14 @@
 TODO
+    [x] ss status
+        [x] show where we are in the stack
+        [x] show untracked changes
+        [x] Special message if we are not in a stack
+
     [ ] ss new (stackName) [(startingBranch)]
-        Creates stackName/0 that tracks startingBranch
-        Creates stackName/1 that tracks stackName/0
-        Throws error if there are untracked changes
+        Corner cases:
+            [ ] untracked changes warns user to use --force to continue
+        [ ] Creates stackName/000 that tracks origin/parentBranch
+        [ ] Creates stackName/001 that tracks origin/stackName/001
         
     [ ] ss push
         pushes up commits
