@@ -4,12 +4,17 @@ TODO
         [x] show untracked changes
         [x] Special message if we are not in a stack
 
-    [ ] ss new (stackName) [(startingBranch)]
-        Corner cases:
-            [ ] untracked changes warns user to use --force to continue
-        [ ] Creates stackName/000 that tracks origin/parentBranch
-        [ ] Creates stackName/001 that tracks origin/stackName/001
+    [x] ss new (stackName) [(startingBranch)]
+        [x] Creates stackName/000 that tracks origin/parentBranch
+        [x] Creates stackName/001 that tracks origin/stackName/001
+        [x] Should fail trying to create a stack off a stack
         
+    [ ] ss purge [stackname] delete all the branches of specified stack
+        [ ] -remote - remove from remote as well
+        [ ] -all - purge all local stacks
+        
+            
+            
     [ ] ss push
         pushes up commits
         generates a PR if there isn't one already
@@ -23,6 +28,8 @@ TODO
     [ ] ss merge
         merges the entire stack (possibly using rebase)
 
+    [ ] ss new Corner cases:
+            [ ] untracked changes warns user to use --force to continue
 
     [x] help - show help
     [x] new - start a new stack

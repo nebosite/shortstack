@@ -70,12 +70,19 @@ export class CommandHandler
     {
         await this.checkForDanglingWork();
         const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
+        console.log(`CURRENT ${stackInfo.current?.branchName ?? "NOT CURRENT"}`)
+        if(options.stackName 
+            && stackInfo.current
+            && stackInfo.current.parent.name.toLowerCase() !== options.stackName.toLowerCase()) {
+            throw new ShortStackError(`Cannot create a new stack from existing stack.  Checkout a non-stacked branch and try again.`)
+        }
 
         if(!options.stackName && !stackInfo.current)
         {
             throw new ShortStackError("The current branch is not a stacked branch."
-                +"\nUse 'ss list' to see available stacks"
-                +"\nUse 'ss new (stackName)` to create a new stack");
+                +"\nUse 'shortstack list' to see available stacks"
+                +"\nUse 'shortstack go (stackName)` to edit an existing stack"
+                +"\nUse 'shortstack new (stackName)` to create a new stack");
         }
 
         if(options.stackName)
@@ -116,7 +123,7 @@ export class CommandHandler
             this._logLine("Discovered these stacks:")
             for(const stack of stackInfo.stacks) {
                 
-                this._logLine(`    ${chalk.whiteBright(stack.name)}  (Tracks: ${stack.parentBranch})`);
+                this._logLine(`    ${chalk.whiteBright(stack.name)}  (Tracks: ${stack.sourceBranch})`);
                 for(const level of stack.levels)
                 {
                     if(level.levelNumber == 0) continue;
@@ -134,7 +141,7 @@ export class CommandHandler
         const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
 
         const unsettledItems = await stackInfo.getUnsettledItems();
-        if(unsettledItems) {
+        if(unsettledItems.length > 0) {
             this._logLine(chalk.yellow("There are unsettled items:"))
             unsettledItems.forEach(i => this._logLine(chalk.yellow(`    ${i}`)))
             this._logLine();
@@ -148,7 +155,7 @@ export class CommandHandler
         }
         else {
             const stack = stackInfo.current.parent;
-            this._logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.parentBranch)})`)
+            this._logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.sourceBranch)})`)
             for(const level of stack.levels)
             {
                 if(level.levelNumber == 0) continue;

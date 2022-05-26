@@ -1,12 +1,20 @@
+import chalk from "chalk";
 import { SimpleGit } from "simple-git";
 import { ShortStackError } from "./CommandHandler";
+
+
+interface ShortStackInfo {
+    sourceBranch: string;
+}
+
+const INFO_TAG_NAME = "shortstack_info"
 
 //------------------------------------------------------------------------------
 // Helper to generate branch names
 //------------------------------------------------------------------------------
 function constructStackLevelBranchName(stackName: string, levelNumber: number) 
 {
-    return `${stackName}/_ss/${`${levelNumber}`.padStart(3,"0")}`
+    return `${stackName}/${`${levelNumber}`.padStart(3,"0")}`
 }
 
 //------------------------------------------------------------------------------
@@ -16,16 +24,14 @@ export class StackItem {
     parent: Stack;
     levelNumber: number;
     get branchName() { return constructStackLevelBranchName(this.parent.name, this.levelNumber)}
-    trackingBranch: string;
     label?: string;
 
     //------------------------------------------------------------------------------
     // ctor
     //------------------------------------------------------------------------------
-    constructor(parent: Stack, levelNumber: number, trackingBranch: string) {
+    constructor(parent: Stack, levelNumber: number) {
         this.parent = parent;
         this.levelNumber = levelNumber;
-        this.trackingBranch = trackingBranch;
     }
 }
 
@@ -34,7 +40,7 @@ export class StackItem {
 //------------------------------------------------------------------------------
 export class Stack {
     name: string;
-    parentBranch: string;
+    sourceBranch: string;
     remoteName: string;
     levels = new Array<StackItem>();
     currentLevel?: StackItem;
@@ -43,38 +49,38 @@ export class Stack {
     //------------------------------------------------------------------------------
     // ctor
     //------------------------------------------------------------------------------
-    constructor(git: SimpleGit, name: string, parentBranch: string, remoteName: string) {
+    constructor(git: SimpleGit, name: string, sourceBranch: string, remoteName: string) {
         this._git = git;
         this.name = name;
-        this.parentBranch = parentBranch;
+        this.sourceBranch = sourceBranch;
         this.remoteName = remoteName;
     }
 
     //------------------------------------------------------------------------------
     // Add a level to the current stack
     //------------------------------------------------------------------------------
-    async AddLevel()
+    async AddLevel(sourceBranch?: string | undefined)
     {
-        let trackingBranch = this.parentBranch;
         let newLevelNumber = 0;
 
         if(this.levels.length > 0)
         {
             const lastLevel = this.levels[this.levels.length-1];
             newLevelNumber = lastLevel.levelNumber+1;
-            trackingBranch = lastLevel.branchName;
         }
         const newBranchName = constructStackLevelBranchName(this.name, newLevelNumber); 
-        await this._git.branch([newBranchName, "--track", trackingBranch])
-        await this._git.checkout(newBranchName);
-        await this._git.pull();
-        await this._git.push(this.remoteName, newBranchName);
 
-        const newItem = new StackItem(this, newLevelNumber, trackingBranch);
+        await this._git.checkout(["-b", newBranchName]);
+        if(sourceBranch) {
+            const info = {sourceBranch}
+            await this._git.commit(`${INFO_TAG_NAME} ${ JSON.stringify(info)}`, ["--allow-empty"])
+        }
+        await this._git.push(["--set-upstream", this.remoteName,newBranchName]);
+
+        const newItem = new StackItem(this, newLevelNumber);
         this.levels.push(newItem);
         this.currentLevel = newItem;
     }
-
 }
 
 //------------------------------------------------------------------------------
@@ -88,8 +94,6 @@ export class StackInfo {
     private _git: SimpleGit;
     private _stacks = new Map<string, Stack>()
     private remoteName = "origin";
-
-
 
     //------------------------------------------------------------------------------
     // ctor
@@ -108,27 +112,42 @@ export class StackInfo {
         output.remoteName = "origin";
         //TODO: maybe discover remote name like this:  await git.remote([])
 
+        const sortedBranchNames:string[] = []
         for(const branchKey in branchSummary.branches)
         {
-            const branchInfo = branchSummary.branches[branchKey];
-            const match = /(.*?)\/_ss\/(\d\d\d)$/.exec(branchKey);
+            sortedBranchNames.push(branchKey);
+        }
+        sortedBranchNames.sort((a,b) => a > b ? 1 : -1)
+        
+
+        for(const branchName of sortedBranchNames)
+        {
+            const branchInfo = branchSummary.branches[branchName];
+            const match = /(.*?)\/(\d\d\d)$/.exec(branchName);
             if(match) {
                 const stackName = match[1];
                 const levelNumber = parseInt(match[2]);
-                const config = await git.listConfig();
-                let trackingBranch = config.values[".git/config"][`branch.${branchKey}.merge`] as string;
-                trackingBranch = trackingBranch.replace("refs/heads/", "");
-                let remoteName = await output.remoteName;
-                if(!output._stacks.get(stackName)) {
-                    output._stacks.set(stackName, new Stack(git, stackName, trackingBranch, remoteName ))
+                if(levelNumber === 0) {
+                    const logDetails = await git.log(["-n", "1", branchInfo.commit])
+                    const firstCommitMessage = logDetails.all[0].message
+                    if(!firstCommitMessage.startsWith(INFO_TAG_NAME)){
+                        console.log(chalk.yellowBright(`Warning: No ${INFO_TAG_NAME} commit on stack '${stackName}'`))    
+                        continue;
+                    }
+                    const infoObject = JSON.parse(firstCommitMessage.substring(INFO_TAG_NAME.length+1)) as ShortStackInfo
+                    output._stacks.set(stackName, new Stack(git, stackName, infoObject.sourceBranch, output.remoteName ))
                 }
 
-                const myStack = output._stacks.get(stackName)!;
-                const newLevel = new StackItem(myStack, levelNumber, trackingBranch);
+                const myStack = output._stacks.get(stackName);
+                if(!myStack) {
+                    console.log(chalk.yellowBright(`Warning: Dangling stack branch '${branchName}'`))  ;
+                    continue; 
+                }
+                const newLevel = new StackItem(myStack, levelNumber);
                 newLevel.label = branchInfo.label;
                 myStack.levels[levelNumber] = newLevel;
 
-                if(branchKey == currentBranch) {
+                if(branchName == currentBranch) {
                     output.current = newLevel;
                     myStack.currentLevel = newLevel;
                 }
@@ -169,15 +188,15 @@ export class StackInfo {
         {
             // Get default branch
             const remoteInfo = await this._git.remote(["show", this.remoteName]);
-            if(!remoteInfo) throw new ShortStackError("Could not find remote info.  Please specify a tracking branch explicitly. ");
+            if(!remoteInfo) throw new ShortStackError("Could not find remote info.  Please specify a parent branch explicitly. ");
             const match = (/HEAD branch: (\S+)/i).exec(remoteInfo);
-            if(!match) parentBranch = "master";
+            if(!match) parentBranch = "main";
             else parentBranch = match[1].valueOf();
         }
         const newStack = new Stack(this._git, name, parentBranch, this.remoteName );
 
         this._stacks.set(name, newStack)
-        await newStack.AddLevel();
+        await newStack.AddLevel(parentBranch);
 
         this.current = newStack.currentLevel;
         return newStack;
