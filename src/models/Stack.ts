@@ -162,6 +162,7 @@ export class StackInfo {
     // advance the stack.
     //--------------------------------------------------------------------------------------
     async getUnsettledItems(){
+        await this._git.fetch();
         const output: string[] = []
         const result = await this._git.status()
         result.not_added.forEach(i =>       output.push(`Not added:     ${i}`))

@@ -1,4 +1,4 @@
-import { ShortStackListOptions, ShortStackNewOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackListOptions, ShortStackNewOptions, ShortStackPurgeOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo} from "./Stack"
 import chalk from "chalk";
@@ -44,33 +44,16 @@ export class CommandHandler
     }
 
     //------------------------------------------------------------------------------
-    // Find any uncommitted work
-    //------------------------------------------------------------------------------
-    private async checkForDanglingWork()
-    {
-        await this._git.fetch();
-        const status = await this._git.status();
-        if(status.not_added.length > 0
-            || status.conflicted.length > 0
-            || status.created.length > 0
-            || status.deleted.length > 0
-            || status.modified.length > 0
-            || status.renamed.length > 0
-            || status.files.length > 0
-            || status.staged.length > 0) {
-                throw new ShortStackError(`The current branch (${status.current}) has uncommitted changes.`)
-            }
-    }
-
-    //------------------------------------------------------------------------------
     // new - create a new stack or new level in the stack
     // usage:  ss new [stackname]
     //------------------------------------------------------------------------------
     async new(options: ShortStackNewOptions) 
     {
-        await this.checkForDanglingWork();
-        const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
-        console.log(`CURRENT ${stackInfo.current?.branchName ?? "NOT CURRENT"}`)
+        const stackInfo = await this.getStackInfo(true);
+        if((await stackInfo.getUnsettledItems()).length > 0) {
+            throw new ShortStackError("Can't create a new stack if there are unsettled items")
+        }
+
         if(options.stackName 
             && stackInfo.current
             && stackInfo.current.parent.name.toLowerCase() !== options.stackName.toLowerCase()) {
@@ -80,9 +63,9 @@ export class CommandHandler
         if(!options.stackName && !stackInfo.current)
         {
             throw new ShortStackError("The current branch is not a stacked branch."
-                +"\nUse 'shortstack list' to see available stacks"
-                +"\nUse 'shortstack go (stackName)` to edit an existing stack"
-                +"\nUse 'shortstack new (stackName)` to create a new stack");
+                +"\n    Use 'shortstack list' to see available stacks"
+                +"\n    Use 'shortstack go (stackName)` to edit an existing stack"
+                +"\n    Use 'shortstack new (stackName)` to create a new stack");
         }
 
         if(options.stackName)
@@ -101,12 +84,6 @@ export class CommandHandler
         this._logLine(chalk.greenBright("==================================="))
         this._logLine(chalk.greenBright("---  Your new branch is ready!  ---"))
         this._logLine(chalk.greenBright("==================================="))
-        // write-host "Next steps:"
-        // write-host "    1) Keep to a 'single-thesis' change for this branch"
-        // write-host "    2) make as many commits as you want"
-        // write-host "    3) When your change is finished:"
-        // write-host "       ss push   <== pushes your changes up and creates a pull request."
-        // write-host "       ss new    <== creates the next branch for a new change.`n`n"
     }
 
     
@@ -115,7 +92,7 @@ export class CommandHandler
     //------------------------------------------------------------------------------
     async list(options: ShortStackListOptions) 
     {
-        const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
+        const stackInfo = await this.getStackInfo();
         if(stackInfo.stacks.length == 0) {
             this._logLine("There are no stacks in this repo.");
         }
@@ -138,36 +115,104 @@ export class CommandHandler
     //------------------------------------------------------------------------------
     async status(options: ShortStackStatusOptions) 
     {
-        const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
-
-        const unsettledItems = await stackInfo.getUnsettledItems();
-        if(unsettledItems.length > 0) {
-            this._logLine(chalk.yellow("There are unsettled items:"))
-            unsettledItems.forEach(i => this._logLine(chalk.yellow(`    ${i}`)))
-            this._logLine();
-        }
-        
-        if(!stackInfo.current) {
-            this._logLine("You are not currently editing a stack.");
-            this._logLine("    To see a list of available stacks:                 shortstack list");
-            this._logLine("    To resume editing an existing stack:               shortstack go [stackname]");
-            this._logLine("    To start a new stack off the current git branch:   shortstack new [stackname]");
-        }
-        else {
-            const stack = stackInfo.current.parent;
-            this._logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.sourceBranch)})`)
-            for(const level of stack.levels)
-            {
-                if(level.levelNumber == 0) continue;
-                const levelText = `${level.levelNumber.toString().padStart(3,"0")} ${level.label}`
-                if(level.levelNumber === stackInfo.current.levelNumber) {
-                    this._logLine(chalk.whiteBright("    --> " + levelText))
-                }
-                else {
-                    this._logLine(chalk.gray       ("        " + levelText))
-                }
+        const stackInfo = await this.getStackInfo(true);
+        this.assertCurrentStack(stackInfo);
+    
+        const stack = stackInfo.current!.parent;
+        this._logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.sourceBranch)})`)
+        for(const level of stack.levels)
+        {
+            if(level.levelNumber == 0) continue;
+            const levelText = `${level.levelNumber.toString().padStart(3,"0")} ${level.label}`
+            if(level.levelNumber === stackInfo.current!.levelNumber) {
+                this._logLine(chalk.whiteBright("    --> " + levelText))
+            }
+            else {
+                this._logLine(chalk.gray       ("        " + levelText))
             }
         }
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async getStackInfo(checkForUnsettledItems: boolean = false) {
+        const stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
+
+        if(checkForUnsettledItems) {
+            const unsettledItems = await stackInfo.getUnsettledItems();
+            if(unsettledItems.length > 0) {
+                this._logLine(chalk.yellow("There are unsettled items:"))
+                unsettledItems.forEach(i => this._logLine(chalk.yellow(`    ${i}`)))
+                this._logLine();
+            }            
+        }
+
+        return stackInfo;
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    assertCurrentStack(stackInfo: StackInfo) {
+        if(!stackInfo.current) {
+            throw new ShortStackError("You are not currently editing a stack."
+                + "\n    To see a list of available stacks:                 shortstack list"
+                + "\n    To resume editing an existing stack:               shortstack go [stackname]"
+                + "\n    To start a new stack off the current git branch:   shortstack new [stackname]"
+            );
+        }
+    }
+
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    async purge(options: ShortStackPurgeOptions) 
+    {
+        const stackInfo = await this.getStackInfo(true);
+        if(stackInfo.current) {
+            throw new ShortStackError("Please run purge from a non-stacked branch.")
+        }
+
+        const stacksToPurge = stackInfo.stacks.filter(s => ((options.stackName && options.stackName.toLowerCase() === s.name.toLowerCase())
+                || options.all))
+
+        if(stacksToPurge.length === 0) {
+            this._logLine("Could not find any stacks to purge.  Either specify a stack name or use -all parameter for all stacks.   Use 'shortstack list' to see local stacks.")
+            return;
+        }
+
+        if(!options.forReal) {
+            this._logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
+        }
+        
+        for(const stack of stacksToPurge) {
+            for(const l of stack.levels) {
+                this._logLine(`    Purging: ${l.branchName}`)
+                if(options.forReal) {
+                    console.log(`         Deleting local`)
+                    await this._git.deleteLocalBranch(l.branchName, true);
+                }
+                if(options.remote) {
+                    this._logLine(`    Purging: ${l.parent.remoteName}/${l.branchName}`)
+                    if(options.forReal) {
+                        console.log(`         Deleting remote`)
+                        await this._git.push([stack.remoteName,"--delete",l.branchName])
+                    }
+                }
+
+            }
+        }
+        stacksToPurge.forEach(s => {
+            s.levels.forEach(l => {
+            })
+        })
+
+        if(!options.forReal) {
+            this._logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
+        }
+    
+        
     }
 
 }

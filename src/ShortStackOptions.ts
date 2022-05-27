@@ -51,6 +51,27 @@ export class ShortStackStatusOptions extends SubOptions {
 
 
 //------------------------------------------------------------------------------
+// purge command options
+//------------------------------------------------------------------------------
+export class ShortStackPurgeOptions extends SubOptions { 
+    commandName= "purge"
+    shortDescription= "Purge stacks from the repository"
+
+    @positionalParameter({description: "Name of stack (empty = all locally found stacks)", required: false})
+    stackName: string | null = null;
+
+    @flagParameter({description: "Also delete stacks from remote"})
+    remote = false;
+
+    @flagParameter({description: "Find all local stacks"})
+    all = false;
+
+    @flagParameter({description: "Really purge.  Otherwise just shows what stacks will die."})
+    forReal = false;
+}
+
+
+//------------------------------------------------------------------------------
 // main program options
 //------------------------------------------------------------------------------
 export class ShortStackOptions extends CommandLineOptionsClass { 
@@ -60,7 +81,7 @@ export class ShortStackOptions extends CommandLineOptionsClass {
 
     @subCommand({
         description: "A Shortstack action.  Use 'shortstack help actions' to see available actions.",
-        commands: [ShortStackNewOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackStatusOptions]
+        commands: [ShortStackNewOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackStatusOptions, ShortStackPurgeOptions]
     })
     action?: CommandLineOptionsClass;
 
