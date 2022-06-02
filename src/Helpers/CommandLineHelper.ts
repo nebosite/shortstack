@@ -55,7 +55,7 @@ enum ParameterType
     Positional = "Positional",              // positional parameter 
     NameValue = "NameValue",                // -Name=Value 
     Flag = "Flag",                          // -Flag
-    Environment = "PositiEnvironmentonal",  // Pull this from the environment
+    Environment = "Environment",            // Pull this from the environment
     Remaining = "Remaining",                // Suck all the remaining parameters into a string array
     SubCommand = "SubCommand"               // A string subcommand with separate parameters
 }
@@ -151,6 +151,13 @@ function genericParameter(type: ParameterType, args: ParameterProperties) {
 }
 
 //------------------------------------------------------------------------------
+// NameValueParameter decorator
+//------------------------------------------------------------------------------
+export function nameValueParameter(args: ParameterProperties) {
+    return genericParameter(ParameterType.NameValue, args);
+}
+  
+//------------------------------------------------------------------------------
 // positionalParameter decorator
 //------------------------------------------------------------------------------
 export function positionalParameter(args: ParameterProperties) {
@@ -229,7 +236,7 @@ export abstract class CommandLineOptionsClass {
         }
         catch(err)
         {
-            this.addError("GENERAL ERROR", err.message);
+            this.addError("GENERAL ERROR", (err as any).message);
         }
     }
 
@@ -364,7 +371,7 @@ export abstract class CommandLineOptionsClass {
                 }
                 catch(err)
                 {
-                    reportError(this.positionalNames![this.positionIndex], err.message)
+                    reportError(this.positionalNames![this.positionIndex], (err as any).message)
                     this.positionIndex++;
                 }
 
