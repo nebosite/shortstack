@@ -70,6 +70,17 @@ export class ShortStackPurgeOptions extends SubOptions {
     forReal = false;
 }
 
+//------------------------------------------------------------------------------
+// push command options
+//------------------------------------------------------------------------------
+export class ShortStackPushOptions extends SubOptions { 
+    commandName= "push"
+    shortDescription= "Push up commits and create PR if one doesn't exist"
+
+    // @nameValueParameter({description: "Comma-separated list of aliases"})
+    // reviewers = "";
+}
+
 
 //------------------------------------------------------------------------------
 // main program options
@@ -81,7 +92,14 @@ export class ShortStackOptions extends CommandLineOptionsClass {
 
     @subCommand({
         description: "A Shortstack action.  Use 'shortstack help actions' to see available actions.",
-        commands: [ShortStackNewOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackStatusOptions, ShortStackPurgeOptions]
+        commands: [
+            ShortStackNewOptions, 
+            ShortStackGoOptions, 
+            ShortStackListOptions, 
+            ShortStackStatusOptions, 
+            ShortStackPurgeOptions,
+            ShortStackPushOptions
+        ]
     })
     action?: CommandLineOptionsClass;
 

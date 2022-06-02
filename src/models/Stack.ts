@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { SimpleGit } from "simple-git";
+import { SimpleGit, StatusResult } from "simple-git";
 import { ShortStackError } from "./CommandHandler";
 
 
@@ -157,14 +157,30 @@ export class StackInfo {
         return output;
     }
 
+    cachedStatus?:StatusResult;
+    statusGetter?: Promise<void>;
     //--------------------------------------------------------------------------------------
-    // Get a human-readable list of items that might cause trouble if we want to 
-    // advance the stack.
+    // 
     //--------------------------------------------------------------------------------------
-    async getUnsettledItems(){
-        await this._git.fetch();
+    async getStatus() {
+        if(!this.statusGetter) {
+            this.statusGetter = new Promise<void>(async(resolve) => {
+                await this._git.fetch();
+                this.cachedStatus = await this._git.status();
+                resolve();
+            })
+        }
+
+        await this.statusGetter;
+        return this.cachedStatus!;
+    }
+
+    //--------------------------------------------------------------------------------------
+    // Get a human-readable list of items that are not committed
+    //--------------------------------------------------------------------------------------
+    async getDanglingWork(){
+        const result = await this.getStatus()
         const output: string[] = []
-        const result = await this._git.status()
         result.not_added.forEach(i =>       output.push(`Not added:     ${i}`))
         result.conflicted.forEach(i =>      output.push(`Conflicted:    ${i}`))
         result.created.forEach(i =>         output.push(`Created:       ${i}`))
@@ -173,10 +189,28 @@ export class StackInfo {
         result.renamed.forEach(i =>         output.push(`Renamed:       ${i}`))
         result.staged.forEach(i =>          output.push(`Staged:        ${i}`))
 
-        if(result.ahead > 0) output.push(`Ahead of remote branch by ${result.ahead} commits`)
-        if(result.behind > 0) output.push(`Behind remote branch by ${result.behind} commits`)
         if(result.detached) output.push(`The current branch is DETATCHED`)
         return output;
+    }
+
+    //--------------------------------------------------------------------------------------
+    // getCommitInfo
+    //--------------------------------------------------------------------------------------
+    async getCommitInfo() {
+        const result = await this.getStatus()
+        const localCommits:{hash: string, message: string}[] = []
+        
+        if(this.current) {
+            const stack = this.current.parent;
+            const log = await this._git.log([`${stack.remoteName}/${this.current.branchName}..HEAD`])
+            console.log(`LOG`)
+            log.all.forEach(l => localCommits.push({hash: l.hash, message: l.message}))    
+        }
+
+        return {
+            behind: result.behind,
+            localCommits
+        }
     }
 
     //------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions, ShortStackStatusOptions, ShortStackPurgeOptions } from "./ShortStackOptions";
+import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions, ShortStackStatusOptions, ShortStackPurgeOptions, ShortStackPushOptions } from "./ShortStackOptions";
 import chalk from "chalk"
 import { CommandHandler, ShortStackError } from "./models/CommandHandler";
 import { CreateOptions } from "./Helpers/CommandLineHelper";
@@ -38,7 +38,6 @@ async function main() {
         if(!options.action)  throw Error("No action specified."); 
 
         const handler = new CommandHandler(console.log);
-        await handler.init();
         switch(options.action.commandName)
         {
             case "new":  await handler.new(options.action! as ShortStackNewOptions); break;
@@ -46,7 +45,8 @@ async function main() {
             case "list":  await handler.list(options.action! as ShortStackListOptions); break;
             case "status": await handler.status(options.action! as ShortStackStatusOptions); break;
             case "purge": await handler.purge(options.action! as ShortStackPurgeOptions); break;
-            default: throw new ShortStackError(`Unknown action: ${options.action.commandName}`)
+            case "push": await handler.push(options.action! as ShortStackPushOptions); break;
+            default: throw new ShortStackError(`Unknown action: ${options.action.commandName}`) 
         }
         return 0;
     } catch (error) {

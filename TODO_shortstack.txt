@@ -9,16 +9,35 @@ TODO
         [x] Creates stackName/001 that tracks origin/stackName/001
         [x] Should fail trying to create a stack off a stack
         
-    [ ] ss purge [stackname] delete all the branches of specified stack
-        [ ] -remote - remove from remote as well
-        [ ] -all - purge all local stacks
+    [x] ss purge [stackname] delete all the branches of specified stack
+        [x] -remote - remove from remote as well
+        [x] -all - purge all local stacks
         
             
             
     [ ] ss push
-        pushes up commits
-        generates a PR if there isn't one already
-        updates PR description with pushed commits
+        [x] Error if there are no commits to push
+        [x] pushes up commits
+        [ ] generates a PR if there isn't one already
+            [ ] Set up git helper:
+                [x] get remote details:
+                    git remote -v
+                    origin  git@git.corp.adobe.com:WebPA/tricorder.git (fetch)
+                    origin  git@git.corp.adobe.com:WebPA/tricorder.git (push)
+                [x] Figure out the correct endpoint https://docs.github.com/en/enterprise-server@3.5/rest/guides/getting-started-with-the-rest-api
+                    (It's different on enterprise server vs regular github)
+                    - prepareGitRemote needs to look for SHORTSTACK_GITTOKEN_[remote server]
+                [x] Construct Git Factory
+                    const gitFactory = new GitFactory(xgit.corp.adobe.com", "/apiproxy/", this.settings.gitApiToken);
+                [x] Construct git helper
+                    const gitHelper = gitFactory.getRemoteRepo("WebPA", "sparkler-shell");
+                [ ] Add ability to search for PRs based on target(base) or source(head) branches
+                    https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-branch-name
+                    
+            [ ] Use REST API to query existing PRS
+            [ ] Use REST API to generate a PR
+        [ ] updates PR description with pushed commits
+        [ ] Show error if there are no commits on this stack
         
     [ ] ss next 
         performs ss push
@@ -48,6 +67,7 @@ TODO
     [ ] go - go to a stack
 
 NEW
+    [ ] Help does not show options for subactions
     [ ] Set up for debugging, document it
     
     [ ] Command to open the PR on the web
