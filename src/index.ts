@@ -3,6 +3,7 @@ import chalk from "chalk"
 import { CommandHandler, ShortStackError } from "./models/CommandHandler";
 import { CreateOptions } from "./Helpers/CommandLineHelper";
 import { UserInput } from "./UserInput";
+import { ConsoleLogger } from "./Helpers/logger";
 
 //------------------------------------------------------------------------------
 // main
@@ -37,7 +38,7 @@ async function main() {
 
         if(!options.action)  throw Error("No action specified."); 
 
-        const handler = new CommandHandler(console.log);
+        const handler = new CommandHandler(new ConsoleLogger());
         switch(options.action.commandName)
         {
             case "new":  await handler.new(options.action! as ShortStackNewOptions); break;

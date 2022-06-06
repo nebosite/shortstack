@@ -15,11 +15,11 @@ TODO
         
             
             
-    [ ] ss push
+    [x] ss push
         [x] Error if there are no commits to push
         [x] pushes up commits
-        [ ] generates a PR if there isn't one already
-            [ ] Set up git helper:
+        [x] generates a PR if there isn't one already
+            [x] Set up git helper:
                 [x] get remote details:
                     git remote -v
                     origin  git@git.corp.adobe.com:WebPA/tricorder.git (fetch)
@@ -31,13 +31,19 @@ TODO
                     const gitFactory = new GitFactory(xgit.corp.adobe.com", "/apiproxy/", this.settings.gitApiToken);
                 [x] Construct git helper
                     const gitHelper = gitFactory.getRemoteRepo("WebPA", "sparkler-shell");
-                [ ] Add ability to search for PRs based on target(base) or source(head) branches
+                [x] Add ability to search for PRs based on target(base) or source(head) branches
                     https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-branch-name
                     
-            [ ] Use REST API to query existing PRS
-            [ ] Use REST API to generate a PR
-        [ ] updates PR description with pushed commits
-        [ ] Show error if there are no commits on this stack
+            [x] Use REST API to query existing PRS
+            [x] Use REST API to generate a PR
+        [x] updates PR description with pushed commits  https://docs.github.com/en/enterprise-server@3.2/rest/pulls/pulls#update-a-pull-request
+            curl \
+              -X PATCH \
+              -H "Accept: application/vnd.github.v3+json" \
+              http(s)://HOSTNAME/api/v3/repos/OWNER/REPO/pulls/PULL_NUMBER \
+              -d '{"title":"new title","body":"updated body","state":"open","base":"master"}'
+        [x] Show error if there are no commits on this stack
+        
         
     [ ] ss next 
         performs ss push

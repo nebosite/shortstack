@@ -258,6 +258,12 @@ export class GitFactory
     }
 }
 
+export interface PRSearchFilter {
+    involvesUser?: string
+    sourceBranch?: string
+    targetBranch?: string
+}
+
 //------------------------------------------------------------------------------
 // Access git repository
 // see https://developer.github.com/v3/
@@ -356,15 +362,44 @@ export class GitRemoteRepo
         return returnMe;
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async createPullRequest(title: string, description: string, sourceBranch: string, targetBranch: string) {
+        const body = {
+            title,
+            body: description,
+            head: sourceBranch,
+            base: targetBranch
+        }
+
+        const resp = await this._gitApiHelper.restPost<GitPullRequest>(`${this.repoApi}/pulls`, JSON.stringify(body))
+        return resp;
+    }
+
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async updatePullRequest(number: number, description: string) {
+        const body = {
+            body: description,
+        }
+
+        const resp = await this._gitApiHelper.restPatch<GitPullRequest>(`${this.repoApi}/pulls/${number}`, JSON.stringify(body))
+        return resp;
+    }
+
     //------------------------------------------------------------------------------
     // Return all the pull requests
     // Filter options:
     //      involvesUser:  return all prs that involve the specified user
     //------------------------------------------------------------------------------
-    async getPullRequests(filter: {involvesUser?: string}): Promise<GitPullRequest[] | null>
+    async findPullRequests(filter: PRSearchFilter): Promise<GitPullRequest[] | null>
     {
         let query = "?per_page=50&q=type:pr+sort:updated-desc";
         if(filter.involvesUser) query += `+involves:${filter.involvesUser}`;
+        if(filter.sourceBranch) query += `+head:${filter.sourceBranch}`
+        if(filter.targetBranch) query += `+base:${filter.targetBranch}`
         const response = await this._gitApiHelper.restGet<GitSearchResponse>(`${this.searchApi}${query}`);
         if(!response) return null;
         return response.items as GitPullRequest[];

@@ -99,14 +99,21 @@ export class RestHelper implements IRestHelper
     }
 
     //------------------------------------------------------------------------------
-    // helper for rest calls
+    // 
     //------------------------------------------------------------------------------
     async restPost<T>(query: string, jsonBody:string): Promise<T> {
         return this.jsonConvert<T>(query, await this.restCall("POST", query, jsonBody));
     }
     
     //------------------------------------------------------------------------------
-    // helper for rest calls
+    // 
+    //------------------------------------------------------------------------------
+    async restPatch<T>(query: string, jsonBody:string): Promise<T> {
+        return this.jsonConvert<T>(query, await this.restCall("PATCH", query, jsonBody));
+    }
+    
+    //------------------------------------------------------------------------------
+    // base method for making any rest call
     //------------------------------------------------------------------------------
     async restCall(method: string, query: string, jsonBody:string | undefined): Promise<string> {
         const url = `${this._callPrefix}${this.apiRoot}${query}`;
@@ -129,7 +136,7 @@ export class RestHelper implements IRestHelper
                     throw new Error(`Got a 301 error.  The requesting URL (${url}) is wrong.  it should be: ${response.headers["location"]}`)
                 } 
                 
-                if(response.status === 200 // OK
+                if( (response.status >= 200 && response.status <300) // OK
                     || response.status === 410  // Gone or empty.  for JSON replies, this means "{}"
                     )
                 {

@@ -3,23 +3,26 @@ import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo} from "./Stack"
 import chalk from "chalk";
 import { GitFactory, GitRemoteRepo } from "../Helpers/Githelper";
+import { ILogger } from "../Helpers/logger"
+import open from 'open';
 
 export class ShortStackError extends Error{ }
 export class CommandHandler 
 {
     currentBranch: String | null = null;
-    private _logLine = (text?:string|undefined) => {};
+    private logger:ILogger;
     private _stackInfo?:StackInfo;
     private _git: SimpleGit; 
     private _initTask: Promise<void>
     private _remoteRepo?:GitRemoteRepo;
+    private _gitBaseURL = "";
 
     //------------------------------------------------------------------------------
     // ctor
     //------------------------------------------------------------------------------
-    constructor(logLine: (text: string | undefined) => void)
+    constructor(logger: ILogger)
     {
-        this._logLine = logLine;
+        this.logger = logger;
 
         const options: SimpleGitOptions = {
             baseDir: process.cwd(),
@@ -60,6 +63,7 @@ export class CommandHandler
         const host = `${gitMatch[2]}`;
         const repoParent =  `${gitMatch[3]}`;
         const repoName =  `${gitMatch[4]}`;
+        this._gitBaseURL =  `https://${host}/${repoParent}/${repoName}`
 
         this._stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
 
@@ -109,15 +113,15 @@ export class CommandHandler
                 throw new ShortStackError("Please switch to a non-stacked branch before creating a new stack.")
             }
 
-            this._logLine("Creating a new stack...")
+            this.logger.logLine("Creating a new stack...")
             const newStack = await this._stackInfo!.CreateStack(options.stackName);
-            this._logLine("Setting up stack level 1...")
+            this.logger.logLine("Setting up stack level 1...")
             await newStack.AddLevel();
         }
 
-        this._logLine(chalk.greenBright("==================================="))
-        this._logLine(chalk.greenBright("---  Your new branch is ready!  ---"))
-        this._logLine(chalk.greenBright("==================================="))
+        this.logger.logLine(chalk.greenBright("==================================="))
+        this.logger.logLine(chalk.greenBright("---  Your new branch is ready!  ---"))
+        this.logger.logLine(chalk.greenBright("==================================="))
     }
 
     
@@ -128,23 +132,23 @@ export class CommandHandler
     {
         await this._initTask;
         if(this._stackInfo!.stacks.length == 0) {
-            this._logLine("There are no stacks in this repo.");
+            this.logger.logLine("There are no stacks in this repo.");
         }
         else {
-            this._logLine("Discovered these stacks:")
+            this.logger.logLine("Discovered these stacks:")
             for(const stack of this._stackInfo!.stacks) {
 
                 const sameStack = stack.name === this._stackInfo!.current?.parent?.name
                 const stackHighlight = sameStack ? chalk.bgGreen : (t: string) => t
                 
-                this._logLine(stackHighlight(`    ${chalk.whiteBright(stack.name)}  (Tracks: ${stack.sourceBranch})`));
+                this.logger.logLine(stackHighlight(`    ${chalk.whiteBright(stack.name)}  (Tracks: ${stack.sourceBranch})`));
                 for(const level of stack.levels)
                 {
                     const sameLevel = sameStack && level.levelNumber === this._stackInfo!.current?.levelNumber
                     const levelHighlight = sameLevel ? chalk.bgGreen : (t: string) => t
     
                     if(level.levelNumber == 0) continue;
-                    this._logLine(chalk.gray(`        ` + levelHighlight(`${level.levelNumber.toString().padStart(3,"0")} ${level.label}`)))
+                    this.logger.logLine(chalk.gray(`        ` + levelHighlight(`${level.levelNumber.toString().padStart(3,"0")} ${level.label}`)))
                 }
             }
         }
@@ -160,16 +164,16 @@ export class CommandHandler
         this.assertCurrentStack();
     
         const stack = this._stackInfo!.current!.parent;
-        this._logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.sourceBranch)})`)
+        this.logger.logLine(`Current Stack: ${chalk.cyanBright(stack.name)}  (branched from ${chalk.cyanBright(stack.sourceBranch)})`)
         for(const level of stack.levels)
         {
             if(level.levelNumber == 0) continue;
             const levelText = `${level.levelNumber.toString().padStart(3,"0")} ${level.label}`
             if(level.levelNumber === this._stackInfo!.current!.levelNumber) {
-                this._logLine(chalk.whiteBright("    --> " + levelText))
+                this.logger.logLine(chalk.whiteBright("    --> " + levelText))
             }
             else {
-                this._logLine(chalk.gray       ("        " + levelText))
+                this.logger.logLine(chalk.gray       ("        " + levelText))
             }
         }
     }
@@ -180,9 +184,9 @@ export class CommandHandler
     async checkForDanglingWork(shouldThrow: boolean = false) {
         const unsettledItems = await this._stackInfo!.getDanglingWork();
         if(unsettledItems.length > 0) {
-            this._logLine(chalk.yellow("There is dangling work:"))
-            unsettledItems.forEach(i => this._logLine(chalk.yellow(`    ${i}`)))
-            this._logLine();
+            this.logger.logLine(chalk.yellow("There is dangling work:"))
+            unsettledItems.forEach(i => this.logger.logLine(chalk.yellow(`    ${i}`)))
+            this.logger.logLine();
             if(shouldThrow) {
                 throw new ShortStackError("Cannot continue until dangling items are resolved.");
             }
@@ -217,25 +221,25 @@ export class CommandHandler
                 || options.all))
 
         if(stacksToPurge.length === 0) {
-            this._logLine("Could not find any stacks to purge.  Either specify a stack name or use -all parameter for all stacks.   Use 'shortstack list' to see local stacks.")
+            this.logger.logLine("Could not find any stacks to purge.  Either specify a stack name or use -all parameter for all stacks.   Use 'shortstack list' to see local stacks.")
             return;
         }
 
         if(!options.forReal) {
-            this._logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
+            this.logger.logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
         }
         
         for(const stack of stacksToPurge) {
             for(const l of stack.levels) {
-                this._logLine(`    Purging: ${l.branchName}`)
+                this.logger.logLine(`    Purging: ${l.branchName}`)
                 if(options.forReal) {
-                    console.log(`         Deleting local`)
+                    this.logger.logLine(`         Deleting local`)
                     await this._git.deleteLocalBranch(l.branchName, true);
                 }
                 if(options.remote) {
-                    this._logLine(`    Purging: ${l.parent.remoteName}/${l.branchName}`)
+                    this.logger.logLine(`    Purging: ${l.parent.remoteName}/${l.branchName}`)
                     if(options.forReal) {
-                        console.log(`         Deleting remote`)
+                        this.logger.logLine(`         Deleting remote`)
                         await this._git.push([stack.remoteName,"--delete",l.branchName])
                     }
                 }
@@ -248,7 +252,7 @@ export class CommandHandler
         })
 
         if(!options.forReal) {
-            this._logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
+            this.logger.logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
         }
     }
 
@@ -259,63 +263,44 @@ export class CommandHandler
     {
         await this._initTask;
         await this.assertCurrentStack();
+        const currentBranch = this._stackInfo?.current!;
         await this.checkForDanglingWork(true);
 
-        const data = await this._remoteRepo!.getFile("main", "/code.ts")
-        console.log(`FOUND: ${data?.sha}`)
-
-        if(Date.now() >0 ) return;
+        const existingPRs = await this._remoteRepo!.findPullRequests({sourceBranch: currentBranch.branchName, targetBranch: currentBranch.previousBranchName})
+        if(existingPRs && existingPRs.length > 1) {
+            this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].id}`)
+        }
 
         const commitInfo = await this._stackInfo!.getCommitInfo();
         if(commitInfo.behind) {
             throw new ShortStackError("This stack level is missing commits that are on the remote.  Perform a git merge with the remote branch before running this command.")
         }
         if(!commitInfo.localCommits?.length) {
-            this._logLine("There are no local commits to push.")
+            this.logger.logLine("There are no local commits to push.")
             return;
         }
 
-        this._logLine(`Pushing up the following commits: `);
-        commitInfo.localCommits.forEach(c => this._logLine(`    ${c.hash} ${c.message}`))
+        this.logger.logLine(`Pushing up the following commits: `);
+        commitInfo.localCommits.forEach(c => this.logger.logLine(`    ${c.hash} ${c.message}`))
         await this._git.push(this._stackInfo!.current!.parent.remoteName, this._stackInfo!.current!.branchName);
 
-                            //origin  git@git.corp.adobe.com:WebPA/tricorder.git (fetch)
-        // const stacksToPurge = this._stackInfo.stacks.filter(s => ((options.stackName && options.stackName.toLowerCase() === s.name.toLowerCase())
-        //         || options.all))
+        let prNumber = 0;
+        if(!existingPRs || existingPRs.length === 0) {
+            this.logger.logLine("Creating a new PR...")
+            const description = commitInfo.localCommits.map(c => c.message).join("\n")
+            const title = description.split("\n")[0].substring(0,60);
+            await this._remoteRepo?.createPullRequest(title, description, currentBranch.branchName, currentBranch.previousBranchName)
+        }
+        else {
+            this.logger.logLine("Updating existing PR...")
+            const existingPR = existingPRs[0];
+            prNumber = existingPR.number;
+            const description = existingPR.body + "\n\n" +  commitInfo.localCommits.map(c => c.message).join("\n")
+            await this._remoteRepo?.updatePullRequest(existingPR.number, description)
+        }
 
-        // if(stacksToPurge.length === 0) {
-        //     this._logLine("Could not find any stacks to purge.  Either specify a stack name or use -all parameter for all stacks.   Use 'shortstack list' to see local stacks.")
-        //     return;
-        // }
-
-        // if(!options.forReal) {
-        //     this._logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
-        // }
-        
-        // for(const stack of stacksToPurge) {
-        //     for(const l of stack.levels) {
-        //         this._logLine(`    Purging: ${l.branchName}`)
-        //         if(options.forReal) {
-        //             console.log(`         Deleting local`)
-        //             await this._git.deleteLocalBranch(l.branchName, true);
-        //         }
-        //         if(options.remote) {
-        //             this._logLine(`    Purging: ${l.parent.remoteName}/${l.branchName}`)
-        //             if(options.forReal) {
-        //                 console.log(`         Deleting remote`)
-        //                 await this._git.push([stack.remoteName,"--delete",l.branchName])
-        //             }
-        //         }
-
-        //     }
-        // }
-        // stacksToPurge.forEach(s => {
-        //     s.levels.forEach(l => {
-        //     })
-        // })
-
-        // if(!options.forReal) {
-        //     this._logLine("DRY RUN ONLY.  Use -forreal parameter to actually purge")
-        // }
+        const prURL = `${this._gitBaseURL}/pull/${prNumber}`
+        this.logger.logLine(`Opening PR: ${prURL}`)
+        await open(prURL);
     }
 }

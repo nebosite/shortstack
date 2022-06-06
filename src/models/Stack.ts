@@ -24,6 +24,7 @@ export class StackItem {
     parent: Stack;
     levelNumber: number;
     get branchName() { return constructStackLevelBranchName(this.parent.name, this.levelNumber)}
+    get previousBranchName() {  return constructStackLevelBranchName(this.parent.name, this.levelNumber - 1)}
     label?: string;
 
     //------------------------------------------------------------------------------
@@ -203,7 +204,6 @@ export class StackInfo {
         if(this.current) {
             const stack = this.current.parent;
             const log = await this._git.log([`${stack.remoteName}/${this.current.branchName}..HEAD`])
-            console.log(`LOG`)
             log.all.forEach(l => localCommits.push({hash: l.hash, message: l.message}))    
         }
 
