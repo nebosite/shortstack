@@ -81,6 +81,14 @@ export class ShortStackPushOptions extends SubOptions {
     // reviewers = "";
 }
 
+//------------------------------------------------------------------------------
+// push command options
+//------------------------------------------------------------------------------
+export class ShortStackNextOptions extends SubOptions { 
+    commandName= "next"
+    shortDescription= "Push up current commits and move to next level in the stack"
+}
+
 
 //------------------------------------------------------------------------------
 // main program options
@@ -98,7 +106,8 @@ export class ShortStackOptions extends CommandLineOptionsClass {
             ShortStackListOptions, 
             ShortStackStatusOptions, 
             ShortStackPurgeOptions,
-            ShortStackPushOptions
+            ShortStackPushOptions,
+            ShortStackNextOptions
         ]
     })
     action?: CommandLineOptionsClass;

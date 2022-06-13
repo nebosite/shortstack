@@ -1,4 +1,45 @@
 TODO
+        
+    [ ] PR titles shoud start with the prefix "SSnnn: "
+    [ ] Help does not show options for subactions
+    [ ] Set up for debugging, document it
+    [ ] Specify assignees
+        [ ] Directly  alias1,alias2,alias3.,,,
+        [ ] git config   configname,configname
+    [ ] finish
+        [ ] Create a final 
+    [ ] go - go to a stack
+    [ ] ss merge
+        merges the entire stack (possibly using rebase)
+
+
+NEW
+
+        
+
+
+IMPORTANT
+
+SOON
+    [ ] Bug: current stack shows title for previous stack if there are no 
+        new commits (ss status)
+    [ ] ss new Corner cases:
+        [ ] untracked changes warns user to use --force to continue
+        [ ] If current branch is not ahead of previous branch, don't create a new one. 
+        [ ] If user has accidentally git pushed changes, detect that
+    [ ] Start unit testing some of this
+    
+LATER
+    [ ] Enhance status to show levels that have unresolved commits
+    [ ] Enhance status to show needed merges
+
+=============== DONE =========================================================
+    [x] ss next 
+        performs ss push
+        creates next level of the stack
+        error if the current stack does not have any work in it
+        error if we are not at the last level already
+
     [x] ss status
         [x] show where we are in the stack
         [x] show untracked changes
@@ -12,6 +53,8 @@ TODO
     [x] ss purge [stackname] delete all the branches of specified stack
         [x] -remote - remove from remote as well
         [x] -all - purge all local stacks
+    [x] help - show help
+    [x] new - start a new stack
         
             
             
@@ -44,47 +87,3 @@ TODO
               -d '{"title":"new title","body":"updated body","state":"open","base":"master"}'
         [x] Show error if there are no commits on this stack
         
-        
-    [ ] ss next 
-        performs ss push
-        creates next level of the stack
-        error if we are not at the last level already
-
-    [ ] ss merge
-        merges the entire stack (possibly using rebase)
-
-    [ ] ss new Corner cases:
-            [ ] untracked changes warns user to use --force to continue
-
-    [x] help - show help
-    [x] new - start a new stack
-        [ ] If current branch is not ahead of previous branch, don't create a new one. 
-        
-
-    [ ] status - show status of current stack 
-        [ ] Show the levels   
-        [ ] Show where we need to push/resolve
-        [ ] if -detailed then show descriptions of parent branch commits that are not in the stack
-    [ ] list - show available stacks
-        [x] show stacks and levels
-        [ ] Show all commits for each level that are not merges
-        [ ] highlight commits not pushed to origin
-        [ ] Show count of commits in parent branch that are not merged
-    [ ] go - go to a stack
-
-NEW
-    [ ] Help does not show options for subactions
-    [ ] Set up for debugging, document it
-    
-    [ ] Command to open the PR on the web
-    [ ] test - run ad-hoc test
-    [ ] abandon
-    [ ] finish
-    [ ] push
-    [ ] update
-
-SOON
-
-LATER
-
-=============== DONE =========================================================

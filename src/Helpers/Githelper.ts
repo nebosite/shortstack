@@ -374,7 +374,7 @@ export class GitRemoteRepo
         }
 
         const resp = await this._gitApiHelper.restPost<GitPullRequest>(`${this.repoApi}/pulls`, JSON.stringify(body))
-        return resp;
+        return resp  as GitPullRequest;
     }
 
     //--------------------------------------------------------------------------------------

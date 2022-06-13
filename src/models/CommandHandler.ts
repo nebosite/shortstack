@@ -1,8 +1,8 @@
-import { ShortStackListOptions, ShortStackNewOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackListOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
-import {StackInfo} from "./Stack"
+import {StackInfo, StackItem} from "./Stack"
 import chalk from "chalk";
-import { GitFactory, GitRemoteRepo } from "../Helpers/Githelper";
+import { GitFactory, GitPullRequest, GitRemoteRepo } from "../Helpers/Githelper";
 import { ILogger } from "../Helpers/logger"
 import open from 'open';
 
@@ -98,14 +98,6 @@ export class CommandHandler
             throw new ShortStackError(`Cannot create a new stack from existing stack.  Checkout a non-stacked branch and try again.`)
         }
 
-        if(!options.stackName && !this._stackInfo!.current)
-        {
-            throw new ShortStackError("The current branch is not a stacked branch."
-                +"\n    Use 'shortstack list' to see available stacks"
-                +"\n    Use 'shortstack go (stackName)` to edit an existing stack"
-                +"\n    Use 'shortstack new (stackName)` to create a new stack");
-        }
-
         if(options.stackName)
         {
             if(this._stackInfo!.current)
@@ -117,11 +109,14 @@ export class CommandHandler
             const newStack = await this._stackInfo!.CreateStack(options.stackName);
             this.logger.logLine("Setting up stack level 1...")
             await newStack.AddLevel();
+            this.logger.logLine(chalk.greenBright("==================================="))
+            this.logger.logLine(chalk.greenBright("---  Your new statck is ready!  ---"))
+            this.logger.logLine(chalk.greenBright("==================================="))
+        }
+        else {
+            this.next({} as unknown as ShortStackNextOptions)
         }
 
-        this.logger.logLine(chalk.greenBright("==================================="))
-        this.logger.logLine(chalk.greenBright("---  Your new branch is ready!  ---"))
-        this.logger.logLine(chalk.greenBright("==================================="))
     }
 
     
@@ -139,13 +134,13 @@ export class CommandHandler
             for(const stack of this._stackInfo!.stacks) {
 
                 const sameStack = stack.name === this._stackInfo!.current?.parent?.name
-                const stackHighlight = sameStack ? chalk.bgGreen : (t: string) => t
+                const stackHighlight = sameStack ? chalk.greenBright : (t: string) => t
                 
-                this.logger.logLine(stackHighlight(`    ${chalk.whiteBright(stack.name)}  (Tracks: ${stack.sourceBranch})`));
+                this.logger.logLine(chalk.gray(stackHighlight(`    ${stack.name}  (Tracks: ${stack.sourceBranch})`)));
                 for(const level of stack.levels)
                 {
                     const sameLevel = sameStack && level.levelNumber === this._stackInfo!.current?.levelNumber
-                    const levelHighlight = sameLevel ? chalk.bgGreen : (t: string) => t
+                    const levelHighlight = sameLevel ? chalk.greenBright : (t: string) => t
     
                     if(level.levelNumber == 0) continue;
                     this.logger.logLine(chalk.gray(`        ` + levelHighlight(`${level.levelNumber.toString().padStart(3,"0")} ${level.label}`)))
@@ -197,13 +192,16 @@ export class CommandHandler
     // 
     //--------------------------------------------------------------------------------------
     assertCurrentStack() {
-        if(!this._stackInfo!.current) {
+        const currentStackLevel = this._stackInfo!.current
+        if(!currentStackLevel) {
             throw new ShortStackError("You are not currently editing a stack."
                 + "\n    To see a list of available stacks:                 shortstack list"
                 + "\n    To resume editing an existing stack:               shortstack go [stackname]"
                 + "\n    To start a new stack off the current git branch:   shortstack new [stackname]"
             );
         }
+
+        return currentStackLevel;
     }
 
     //------------------------------------------------------------------------------
@@ -256,25 +254,39 @@ export class CommandHandler
         }
     }
 
-    //------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------
     // 
-    //------------------------------------------------------------------------------
-    async push(options: ShortStackPushOptions) 
-    {
-        await this._initTask;
-        await this.assertCurrentStack();
-        const currentBranch = this._stackInfo?.current!;
-        await this.checkForDanglingWork(true);
-
-        const existingPRs = await this._remoteRepo!.findPullRequests({sourceBranch: currentBranch.branchName, targetBranch: currentBranch.previousBranchName})
-        if(existingPRs && existingPRs.length > 1) {
-            this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].id}`)
+    //--------------------------------------------------------------------------------------
+    async getGitInfo(currentLevel: StackItem) {
+        const existingPRs = await this._remoteRepo!.findPullRequests({sourceBranch: currentLevel.branchName, targetBranch: currentLevel.previousBranchName})
+        let currentPr: GitPullRequest | undefined = undefined;
+        if(existingPRs) {
+            if(existingPRs.length > 0) {
+                currentPr = existingPRs[0]
+            }
+            if(existingPRs.length > 1) {
+                this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].id}`)
+            }
         }
 
         const commitInfo = await this._stackInfo!.getCommitInfo();
         if(commitInfo.behind) {
             throw new ShortStackError("This stack level is missing commits that are on the remote.  Perform a git merge with the remote branch before running this command.")
         }
+
+        return {currentPr, commitInfo}
+    }
+
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    async push(options: ShortStackPushOptions) 
+    {
+        await this._initTask;
+        const currentLevel = await this.assertCurrentStack();
+        await this.checkForDanglingWork(true);
+
+        const {currentPr, commitInfo} = await this.getGitInfo(currentLevel);
         if(!commitInfo.localCommits?.length) {
             this.logger.logLine("There are no local commits to push.")
             return;
@@ -285,22 +297,46 @@ export class CommandHandler
         await this._git.push(this._stackInfo!.current!.parent.remoteName, this._stackInfo!.current!.branchName);
 
         let prNumber = 0;
-        if(!existingPRs || existingPRs.length === 0) {
+        if(!currentPr) {
             this.logger.logLine("Creating a new PR...")
             const description = commitInfo.localCommits.map(c => c.message).join("\n")
-            const title = description.split("\n")[0].substring(0,60);
-            await this._remoteRepo?.createPullRequest(title, description, currentBranch.branchName, currentBranch.previousBranchName)
+            const title = `SS${currentLevel.levelNumber.toString().padStart(3,"0")}: ` 
+                            + description.split("\n")[0].substring(0,60);
+            const newPR = await this._remoteRepo?.createPullRequest(title, description, currentLevel.branchName, currentLevel.previousBranchName)
+            if(!newPR) throw new ShortStackError("Could not create a new pull request.")
+            prNumber = newPR?.number ?? 0;
         }
         else {
             this.logger.logLine("Updating existing PR...")
-            const existingPR = existingPRs[0];
-            prNumber = existingPR.number;
-            const description = existingPR.body + "\n\n" +  commitInfo.localCommits.map(c => c.message).join("\n")
-            await this._remoteRepo?.updatePullRequest(existingPR.number, description)
+            prNumber = currentPr.number;
+            const description = currentPr.body + "\n\n" +  commitInfo.localCommits.map(c => c.message).join("\n")
+            await this._remoteRepo?.updatePullRequest(currentPr.number, description)
         }
 
         const prURL = `${this._gitBaseURL}/pull/${prNumber}`
         this.logger.logLine(`Opening PR: ${prURL}`)
         await open(prURL);
+    }
+
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    async next(options: ShortStackPushOptions) 
+    {
+        await this._initTask;
+        const currentLevel = await this.assertCurrentStack();
+        await this.checkForDanglingWork(true);
+
+        const {currentPr, commitInfo} = await this.getGitInfo(currentLevel);
+
+        if(!currentPr && commitInfo.localCommits.length === 0) {
+            throw new ShortStackError("No work found on the current level.  Commit some code before running this command.")
+        }
+
+        await this.push({} as unknown as ShortStackPushOptions);
+
+        this.logger.logLine(`Creating new stack level: ${currentLevel.parent.nextLevelNumber}`)
+        await currentLevel.parent.AddLevel();
+        this.logger.logLine(chalk.greenBright("Success.  New stack level is ready."))
     }
 }

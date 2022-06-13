@@ -47,6 +47,15 @@ export class Stack {
     currentLevel?: StackItem;
     private _git: SimpleGit;
 
+    get nextLevelNumber() {
+        if(this.levels.length > 0)
+        {
+            const lastLevel = this.levels[this.levels.length-1];
+            return lastLevel.levelNumber+1;
+        }
+        return 0;
+    }
+
     //------------------------------------------------------------------------------
     // ctor
     //------------------------------------------------------------------------------
@@ -62,13 +71,8 @@ export class Stack {
     //------------------------------------------------------------------------------
     async AddLevel(sourceBranch?: string | undefined)
     {
-        let newLevelNumber = 0;
+        let newLevelNumber = this.nextLevelNumber
 
-        if(this.levels.length > 0)
-        {
-            const lastLevel = this.levels[this.levels.length-1];
-            newLevelNumber = lastLevel.levelNumber+1;
-        }
         const newBranchName = constructStackLevelBranchName(this.name, newLevelNumber); 
 
         await this._git.checkout(["-b", newBranchName]);
