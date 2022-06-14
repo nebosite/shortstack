@@ -17,6 +17,7 @@ const chalk_1 = __importDefault(require("chalk"));
 const CommandHandler_1 = require("./models/CommandHandler");
 const CommandLineHelper_1 = require("./Helpers/CommandLineHelper");
 const UserInput_1 = require("./UserInput");
+const logger_1 = require("./Helpers/logger");
 //------------------------------------------------------------------------------
 // main
 //------------------------------------------------------------------------------
@@ -45,19 +46,30 @@ function main() {
             }
             if (!options.action)
                 throw Error("No action specified.");
-            const handler = new CommandHandler_1.CommandHandler(console.log);
-            yield handler.init();
+            const handler = new CommandHandler_1.CommandHandler(new logger_1.ConsoleLogger());
             switch (options.action.commandName) {
                 case "new":
                     yield handler.new(options.action);
                     break;
                 case "go":
-                    console.log("GO");
+                    yield handler.go(options.action);
                     break;
                 case "list":
                     yield handler.list(options.action);
                     break;
-                default: throw Error(`Unknown action: ${options.action}`);
+                case "status":
+                    yield handler.status(options.action);
+                    break;
+                case "purge":
+                    yield handler.purge(options.action);
+                    break;
+                case "push":
+                    yield handler.push(options.action);
+                    break;
+                case "next":
+                    yield handler.next(options.action);
+                    break;
+                default: throw new CommandHandler_1.ShortStackError(`Unknown action: ${options.action.commandName}`);
             }
             return 0;
         }

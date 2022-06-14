@@ -67,7 +67,7 @@ class RestHelper {
         });
     }
     //------------------------------------------------------------------------------
-    // helper for rest calls
+    // 
     //------------------------------------------------------------------------------
     restPost(query, jsonBody) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -75,7 +75,15 @@ class RestHelper {
         });
     }
     //------------------------------------------------------------------------------
-    // helper for rest calls
+    // 
+    //------------------------------------------------------------------------------
+    restPatch(query, jsonBody) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.jsonConvert(query, yield this.restCall("PATCH", query, jsonBody));
+        });
+    }
+    //------------------------------------------------------------------------------
+    // base method for making any rest call
     //------------------------------------------------------------------------------
     restCall(method, query, jsonBody) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -93,7 +101,7 @@ class RestHelper {
                 if (response.status === 301) {
                     throw new Error(`Got a 301 error.  The requesting URL (${url}) is wrong.  it should be: ${response.headers["location"]}`);
                 }
-                if (response.status === 200 // OK
+                if ((response.status >= 200 && response.status < 300) // OK
                     || response.status === 410 // Gone or empty.  for JSON replies, this means "{}"
                 ) {
                     const text = yield response.text();

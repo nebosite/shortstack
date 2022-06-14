@@ -1,6 +1,6 @@
 {
   "name": "shortstack",
-  "version": "0.02.00",
+  "version": "0.03.00",
   "description": "Makes the world a better place",
   "scripts": {
     "start": "ts-node src/index.ts",

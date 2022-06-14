@@ -2,8 +2,8 @@ TODO
         
     [x] PR titles shoud start with the prefix "SSnnn: "
     [x] Help does not show options for subactions
-    [ ] go - go to a stack
-    [ ] Slightly more details in the help to explain steps
+    [x] go - go to a stack
+    [x] Slightly more details in the help to explain steps
     [ ] Specify assignees
         [ ] Directly  alias1,alias2,alias3.,,,
         [ ] git config   configname,configname
