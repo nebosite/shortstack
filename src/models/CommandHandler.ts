@@ -1,4 +1,4 @@
-import { ShortStackListOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackGoOptions, ShortStackListOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo, StackItem} from "./Stack"
 import chalk from "chalk";
@@ -339,4 +339,46 @@ export class CommandHandler
         await currentLevel.parent.AddLevel();
         this.logger.logLine(chalk.greenBright("Success.  New stack level is ready."))
     }
+
+    //------------------------------------------------------------------------------
+    // 
+    //------------------------------------------------------------------------------
+    async go(options: ShortStackGoOptions) 
+    {
+        await this._initTask;
+        await this.checkForDanglingWork(true);
+        let targetLevel = Number.parseInt(options.level ?? "0");
+        let targetStackName = options.nameOrLevel ?? (this._stackInfo?.current?.parent.name) ?? "";
+        if(targetStackName === "") {
+            throw new ShortStackError("Not on a current stack.  Run 'shortstack list' to see available stacks")
+        }
+        if(options.nameOrLevel?.match(/^\d+$/)) {
+            const currentLevel = await this.assertCurrentStack();
+            targetStackName = currentLevel.parent.name;
+            targetLevel = Number.parseInt(options.nameOrLevel!);
+        }
+
+        // Don't move off this stack level if there is uncommitted work
+        if(this._stackInfo!.current) {
+            const {commitInfo} = await this.getGitInfo(this._stackInfo!.current!);
+            if(commitInfo.localCommits.length > 0) {
+                throw new ShortStackError("There is unpushed work at the current level.  Run 'shortstack push' before switching off this stack.")
+            }
+        }
+
+        const targetStack = this._stackInfo!.stacks.find(s => s.name.toLowerCase() === targetStackName?.toLowerCase())
+        if(!targetStack) {
+            throw new ShortStackError(`Could not find a stack called '${targetStackName}'.  Run 'shortstack list' to see available stacks`)
+        }
+
+        if(targetLevel === 0) targetLevel = targetStack.nextLevelNumber - 1;
+        const level = targetStack.levels.find(l => l.levelNumber === targetLevel);
+        if(!level) {
+            throw new ShortStackError(`The target stack '${targetStackName}' does not have level ${targetLevel}.  Run 'shortstack list' to see available stacks and levels.` )
+        }
+
+        this.logger.logLine(`Changing to stack '${targetStackName}', level ${targetLevel}`)
+        await this._git.checkout([level.branchName])
+    }
+
 }

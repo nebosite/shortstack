@@ -26,10 +26,10 @@ export class ShortStackGoOptions extends SubOptions {
     commandName= "go"
     shortDescription= `Go to a particular stack and/or stack level`
 
-    @positionalParameter({description: "Name or level of the stack to go to (default is current stack)"})
+    @positionalParameter({description: "Name of stack or level of the current stack to go to", required: true})
     nameOrLevel: string | null = null;
 
-    @positionalParameter({description: "Level of the stack to go to"})
+    @positionalParameter({description: "Level of the named stack to go to"})
     level: string | null = null;
 }
 
