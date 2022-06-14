@@ -1,14 +1,16 @@
 TODO
         
-    [ ] PR titles shoud start with the prefix "SSnnn: "
+    [x] PR titles shoud start with the prefix "SSnnn: "
     [ ] Help does not show options for subactions
+    [ ] go - go to a stack
+    
     [ ] Set up for debugging, document it
     [ ] Specify assignees
         [ ] Directly  alias1,alias2,alias3.,,,
         [ ] git config   configname,configname
+        [ ] Auto-assign based on git config :   ss_autoassign_reponame:alias1,alias2,...
     [ ] finish
         [ ] Create a final 
-    [ ] go - go to a stack
     [ ] ss merge
         merges the entire stack (possibly using rebase)
 

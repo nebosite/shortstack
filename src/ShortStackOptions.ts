@@ -12,10 +12,10 @@ export class ShortStackNewOptions extends SubOptions {
     commandName= "new"
     shortDescription= `Create a new stack or new level on an existing stack`
 
-    @positionalParameter({description: "Name of the stack to create"})
+    @positionalParameter({description: "Name of the stack to create.", required: true})
     stackName: string | null = null;
 
-    @positionalParameter({description: "Desired root branch for this stack"})
+    @positionalParameter({description: "Desired root branch for this stack. (Default is current branch)"})
     root: string | null = null;
 }
 
@@ -57,7 +57,7 @@ export class ShortStackPurgeOptions extends SubOptions {
     commandName= "purge"
     shortDescription= "Purge stacks from the repository"
 
-    @positionalParameter({description: "Name of stack (empty = all locally found stacks)", required: false})
+    @positionalParameter({description: "Name of stack (default = all locally found stacks)", required: false})
     stackName: string | null = null;
 
     @flagParameter({description: "Also delete stacks from remote"})

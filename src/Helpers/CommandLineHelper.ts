@@ -499,15 +499,16 @@ function showUsage(options: any, printLine: (text: string) => void)
 
     const parameters = getParameters(options);
     if(parameters) {
-        const quickLine = (name: string, description?: string) =>
-        {
-            let output =  name;
-            output += " ".repeat(40 - output.length);
-            if(description) output += description;
-            return output;
-        }
+        const braceIfRequired = (required: boolean, text: string)=>  required ? `[${text}]` : `(${text})`;
+        const flagUsage = (arg: ArgumentDetails) => {
+            let flags = "-" + arg.propertyName;
 
-        const braceIfRequired = (required: boolean, text: string)=>  required ? text : `(${text})`;
+            if(arg.alternateNames)
+            {
+                flags = "-" + arg.alternateNames.join("|-");
+            }
+            return flags;
+        }
 
         const sortedParameters = Array.from(parameters.values()).sort((v1,v2) => {
             if(v1.propertyName === "showHelp") return 1;
@@ -531,18 +532,15 @@ function showUsage(options: any, printLine: (text: string) => void)
             {
                 case  ParameterType.Positional: 
                     usageLine += " " + braceIfRequired(parameter.required, `[${parameter.propertyName}]`);
-                    details.push(quickLine(parameter.propertyName, parameter.description));
+                    details.push(parameter.propertyName)
+                    details.push("    " + parameter.description);
                     break;
                 case ParameterType.Flag:
-                    let flags = "-" + parameter.propertyName;
-
-                    if(parameter.alternateNames)
-                    {
-                        flags = "-" + parameter.alternateNames.join("|-");
-                    }
-
+                    let flags = flagUsage(parameter); 
                     usageLine += " " + braceIfRequired(parameter.required, flags);
-                    details.push(quickLine(flags, parameter.description));
+                    details.push(flags)
+                    details.push("    " + parameter.description);
+
                     break;
                 case ParameterType.Environment:
                     let envNames = [parameter.propertyName];
@@ -550,17 +548,47 @@ function showUsage(options: any, printLine: (text: string) => void)
                     {
                         envNames = parameter.alternateNames
                     }
-                    environmentDetails.push(quickLine (envNames.join("|"), parameter.description));
+                    details.push(envNames.join("|"))
+                    details.push("    " + parameter.description);
+
                     break;
                 case ParameterType.Remaining:
                     usageLine += " " + braceIfRequired(parameter.required, `[${parameter.propertyName}...]`);
-                    details.push(quickLine(parameter.propertyName, parameter.description));
+                    details.push(parameter.propertyName)
+                    details.push("    " + parameter.description);
                     break;
                 case ParameterType.SubCommand:
                     const subCommandNames = new Array<string>();
                     for(const commandType of parameter.decoratorConfig!.commands!) {
                         const subCommandOptions = CreateOptions(commandType,[]);
-                        details.push(quickLine(subCommandOptions.commandName, subCommandOptions.shortDescription))
+
+                        const subItems: {name: string, usage: string, help: string}[] = []
+                        const subParams = getParameters(subCommandOptions)// getParameterMap(commandType, true)
+                        for(const param of Array.from(subParams.keys())) {
+                            if(param === "showHelp") continue;
+                            const arg = subParams.get(param);
+                            const usageText =  arg?.type === ParameterType.Flag ? flagUsage(arg) : param
+                            subItems.push({
+                                name: param,
+                                usage: braceIfRequired(arg?.required ?? true,usageText),
+                                help: arg?.description ?? "---"
+                            })
+                           // check for property in subParams 
+                        }
+
+                        // TODO: generically pull out the usage for this subcommand
+                        // const subItems = [
+                        //     { name: "foo", usage: "foo", help: "specify which foo"},
+                        //     { name: "bar", usage: "[bar]", help: "specify which bar"},
+                        // ]
+                        const subUsage = subItems.map(i => i.usage).join(" ");
+
+
+                        details.push(`${subCommandOptions.commandName} ${subUsage}`)
+                        details.push("    " + subCommandOptions.shortDescription);
+    
+                        subItems.forEach(i =>details.push(`        ${i.name}: ${i.help}`))
+
                         subCommandNames.push(subCommandOptions.commandName)
                     }
                     usageLine += " " + braceIfRequired(parameter.required, `(${subCommandNames.join("|")}) (options)`);
