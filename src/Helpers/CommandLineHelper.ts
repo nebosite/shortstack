@@ -446,42 +446,41 @@ function formatOverflow(leftMargin: number, rightMargin: number, text: string)
 {
     text += " ";
     const output = new Array<string>();
-    let currentLine ="";
-    let currentWord = "";
-    let currentLineHasText = true;
 
-    const flushLine = () =>
-    {
-        output.push(currentLine);
-        currentLine = " ".repeat(leftMargin) + currentWord;
-        currentLineHasText = currentWord != "";
-        currentWord = "";
-    }
+    for(const line of text.split("\n")) {
+        let currentLine ="";
+        let currentWord = "";
 
-    for(let i = 0; i < text.length; i++)
-    {
-        // skip space at the start of the line
-        if(text[i] == ' ' && !currentLineHasText) continue;
-        if(text[i].match(/\s/)) {
-            if(currentWord !== "") {
-                if((currentLine.length + currentWord.length) >= rightMargin) {
-                    flushLine()
+        const flushLine = () =>
+        {
+            output.push(currentLine);
+            currentLine = " ".repeat(leftMargin) + currentWord;
+            currentWord = "";
+        }
+
+        for(let i = 0; i < line.length; i++)
+        {
+            // skip space at the start of the line
+            if(line[i].match(/\s/)) {
+                if(currentWord !== "") {
+                    if((currentLine.length + currentWord.length) >= rightMargin) {
+                        flushLine()
+                    }
+                    else {
+                        currentLine += currentWord;
+                        currentWord = "";
+                    }
                 }
-                else {
-                    currentLine += currentWord;
-                    currentLineHasText = true;
-                    currentWord = "";
-                }
+                if(line[i] == '\n') flushLine();
+                else currentLine += line[i];
             }
-            if(text[i] == '\n') flushLine();
-            else currentLine += text[i];
-        }
-        else {
-            currentWord += text[i];
-        }
+            else {
+                currentWord += line[i];
+            }
+        }       
+        if(currentWord !== "") currentLine += currentWord; 
+        if(currentLine != "") flushLine();
     }
-
-    if(currentLine != "") flushLine();
 
     return output.join("\n");
 }

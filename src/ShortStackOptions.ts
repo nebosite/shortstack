@@ -96,7 +96,25 @@ export class ShortStackNextOptions extends SubOptions {
 export class ShortStackOptions extends CommandLineOptionsClass { 
     commandName= "shortstack"
     shortDescription= `(Version ${require("../package.json").version}) A tool for stacking pull requests in a git repo`
-    longDescription= `Great for isolating smaller changes of a much larger big change`
+    longDescription= `Shortstack is a tool for isolating large changes into a series of small pull requests.
+
+    The general flow goes like this:
+        1. checkout main (or any other branch) and pull current code from the repo
+        2. 'shortstack new (mystackName)' to create a new stack.   
+           This will create a branch: mystackName/001
+        3. Make some code changes and do one or more git commits.  
+           (DO NOT git push - shortstack should handle that)
+        4. 'shortstack next' to push up your changes and move to the next level
+        5. Use shortstack's go command to go back to older levels and 
+           make additional changes (e.g. respond to code reviews) and 
+           then the merge command to auto move changes down through the stack
+        6. Use shortstack's merge command to align the full stack with main 
+           (or whatever source branch you started from)
+        7. When all the PRs are approved, run 'shortstack finish' to wrap
+           all the changeds into a single PR back to the source branch
+        8. When everything is done, use 'shortstack purge' command to clean up
+           the stacked branches. 
+    `
 
     @subCommand({
         description: "A Shortstack action.  Use 'shortstack help actions' to see available actions.",
