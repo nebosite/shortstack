@@ -10,6 +10,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const RestHelper_1 = require("./RestHelper");
+const doNothing = (delay_ms) => {
+    return new Promise(resolve => { setTimeout(() => resolve(), delay_ms); });
+};
 //------------------------------------------------------------------------------
 // Convenient Factory for getting git objects
 //------------------------------------------------------------------------------
@@ -122,7 +125,7 @@ class GitRemoteRepo {
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    createPullRequest(title, description, sourceBranch, targetBranch) {
+    createPullRequest(title, description, sourceBranch, targetBranch, reviewers = undefined) {
         return __awaiter(this, void 0, void 0, function* () {
             const body = {
                 title,
@@ -131,6 +134,30 @@ class GitRemoteRepo {
                 base: targetBranch
             };
             const resp = yield this._gitApiHelper.restPost(`${this.repoApi}/pulls`, JSON.stringify(body));
+            if (reviewers) {
+                try {
+                    console.log(`Adding default reviewers: ${reviewers.join(", ")}`);
+                    let tries = 0;
+                    while (true) {
+                        try {
+                            yield this._gitApiHelper.restPost(
+                            // `${this.repoApi}/issues/${resp.number}/assignees`, 
+                            `${this.repoApi}/pulls/${resp.number}/requested_reviewers`, JSON.stringify({ reviewers }));
+                            break;
+                        }
+                        catch (err) {
+                            tries++;
+                            if (tries > 3) {
+                                throw Error(`Ran out of retires on error: ${err.message}`);
+                            }
+                            yield doNothing(tries * 1000);
+                        }
+                    }
+                }
+                catch (err) {
+                    console.log(`ERROR adding reviewers: ${err.message}`);
+                }
+            }
             return resp;
         });
     }

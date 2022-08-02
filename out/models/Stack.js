@@ -142,6 +142,9 @@ class StackInfo {
     //--------------------------------------------------------------------------------------
     getStatus() {
         return __awaiter(this, void 0, void 0, function* () {
+            if (this.cachedStatus) {
+                return this.cachedStatus;
+            }
             if (!this.statusGetter) {
                 this.statusGetter = new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
                     yield this._git.fetch();

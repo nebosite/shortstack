@@ -103,7 +103,7 @@ class CommandHandler {
                 this.logger.logLine(chalk_1.default.greenBright("==================================="));
             }
             else {
-                this.next({});
+                yield this.next({});
             }
         });
     }
@@ -256,7 +256,7 @@ class CommandHandler {
     // 
     //------------------------------------------------------------------------------
     push(options) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e, _f;
         return __awaiter(this, void 0, void 0, function* () {
             yield this._initTask;
             const currentLevel = yield this.assertCurrentStack();
@@ -275,16 +275,18 @@ class CommandHandler {
                 const description = commitInfo.localCommits.map(c => c.message).join("\n");
                 const title = `SS${currentLevel.levelNumber.toString().padStart(3, "0")}: `
                     + description.split("\n")[0].substring(0, 60);
-                const newPR = yield ((_b = this._remoteRepo) === null || _b === void 0 ? void 0 : _b.createPullRequest(title, description, currentLevel.branchName, currentLevel.previousBranchName));
+                const reviewerText = (_b = this._git.getConfig("shortstack.reviewers", "local")) !== null && _b !== void 0 ? _b : this._git.getConfig("shortstack.reviewers", "global");
+                const reviewers = reviewerText ? (_c = ((yield reviewerText).value)) === null || _c === void 0 ? void 0 : _c.split(",") : undefined;
+                const newPR = yield ((_d = this._remoteRepo) === null || _d === void 0 ? void 0 : _d.createPullRequest(title, description, currentLevel.branchName, currentLevel.previousBranchName, reviewers));
                 if (!newPR)
                     throw new ShortStackError("Could not create a new pull request.");
-                prNumber = (_c = newPR === null || newPR === void 0 ? void 0 : newPR.number) !== null && _c !== void 0 ? _c : 0;
+                prNumber = (_e = newPR === null || newPR === void 0 ? void 0 : newPR.number) !== null && _e !== void 0 ? _e : 0;
             }
             else {
                 this.logger.logLine("Updating existing PR...");
                 prNumber = currentPr.number;
                 const description = currentPr.body + "\n\n" + commitInfo.localCommits.map(c => c.message).join("\n");
-                yield ((_d = this._remoteRepo) === null || _d === void 0 ? void 0 : _d.updatePullRequest(currentPr.number, description));
+                yield ((_f = this._remoteRepo) === null || _f === void 0 ? void 0 : _f.updatePullRequest(currentPr.number, description));
             }
             const prURL = `${this._gitBaseURL}/pull/${prNumber}`;
             this.logger.logLine(`Opening PR: ${prURL}`);
