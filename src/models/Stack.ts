@@ -168,6 +168,10 @@ export class StackInfo {
     // 
     //--------------------------------------------------------------------------------------
     async getStatus() {
+        if(this.cachedStatus) {
+            return this.cachedStatus;
+        }
+
         if(!this.statusGetter) {
             this.statusGetter = new Promise<void>(async(resolve) => {
                 await this._git.fetch();

@@ -1,6 +1,11 @@
 import { RestHelper } from "./RestHelper";
 
 
+const doNothing  = (delay_ms: number) =>
+{
+    return new Promise<void>(resolve => {setTimeout(()=> resolve(),delay_ms)})
+}
+
 export interface GitCommit
 {
     sha: string;
@@ -365,7 +370,7 @@ export class GitRemoteRepo
     //--------------------------------------------------------------------------------------
     // 
     //--------------------------------------------------------------------------------------
-    async createPullRequest(title: string, description: string, sourceBranch: string, targetBranch: string) {
+    async createPullRequest(title: string, description: string, sourceBranch: string, targetBranch: string, reviewers: string[] | undefined = undefined) {
         const body = {
             title,
             body: description,
@@ -373,7 +378,39 @@ export class GitRemoteRepo
             base: targetBranch
         }
 
-        const resp = await this._gitApiHelper.restPost<GitPullRequest>(`${this.repoApi}/pulls`, JSON.stringify(body))
+        const resp = await this._gitApiHelper.restPost<GitPullRequest>(
+            `${this.repoApi}/pulls`, 
+            JSON.stringify(body)
+        )
+
+        if(reviewers) {
+            try {
+                console.log(`Adding default reviewers: ${reviewers.join(", ")}`)
+                let tries = 0;
+                while(true) {
+                    try {
+                        await this._gitApiHelper.restPost<GitPullRequest>(
+                            // `${this.repoApi}/issues/${resp.number}/assignees`, 
+                            `${this.repoApi}/pulls/${resp.number}/requested_reviewers`, 
+                            JSON.stringify({reviewers})
+                        )      
+                        break;            
+                    }
+                    catch(err) {
+                        tries++;
+                        if(tries > 3) {
+                            throw Error(`Ran out of retires on error: ${(err as any).message}`)
+                        }
+
+                        await doNothing(tries * 1000)
+                    }
+                }
+            }
+            catch(err) {
+                console.log(`ERROR adding reviewers: ${(err as any).message}`)
+            }
+        }
+       
         return resp  as GitPullRequest;
     }
 

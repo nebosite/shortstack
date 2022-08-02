@@ -114,7 +114,7 @@ export class CommandHandler
             this.logger.logLine(chalk.greenBright("==================================="))
         }
         else {
-            this.next({} as unknown as ShortStackNextOptions)
+            await this.next({} as unknown as ShortStackNextOptions)
         }
 
     }
@@ -302,7 +302,19 @@ export class CommandHandler
             const description = commitInfo.localCommits.map(c => c.message).join("\n")
             const title = `SS${currentLevel.levelNumber.toString().padStart(3,"0")}: ` 
                             + description.split("\n")[0].substring(0,60);
-            const newPR = await this._remoteRepo?.createPullRequest(title, description, currentLevel.branchName, currentLevel.previousBranchName)
+
+            const reviewerText = this._git.getConfig("shortstack.reviewers", "local")
+                                ?? this._git.getConfig("shortstack.reviewers", "global")
+
+            const reviewers = reviewerText ? ((await reviewerText).value)?.split(",") : undefined;
+
+            const newPR = await this._remoteRepo?.createPullRequest(
+                title, 
+                description, 
+                currentLevel.branchName, 
+                currentLevel.previousBranchName,
+                reviewers
+            )
             if(!newPR) throw new ShortStackError("Could not create a new pull request.")
             prNumber = newPR?.number ?? 0;
         }

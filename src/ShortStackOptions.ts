@@ -114,6 +114,11 @@ export class ShortStackOptions extends CommandLineOptionsClass {
            all the changeds into a single PR back to the source branch
         8. When everything is done, use 'shortstack purge' command to clean up
            the stacked branches. 
+
+    TIPS
+        * You can automatically assign reviewers by adding this to your local or global .git/config file: 
+            [shortstack]
+                reviewers = alias1,alias2,alias3,...
     `
 
     @subCommand({
