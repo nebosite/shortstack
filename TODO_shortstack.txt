@@ -4,10 +4,8 @@ TODO
     [x] Help does not show options for subactions
     [x] go - go to a stack
     [x] Slightly more details in the help to explain steps
-    [ ] Specify assignees
-        [ ] Directly  alias1,alias2,alias3.,,,
-        [ ] git config   configname,configname
-        [ ] Auto-assign based on git config :   ss_autoassign_reponame:alias1,alias2,...    
+    [x] Specify assignees in git config   [shortstack] reviewers
+    [ ] SS: Bug: Stack names are wrong - should derive from PR
     [ ] finish
         [ ] Create a final 
     [ ] ss merge
@@ -16,6 +14,10 @@ TODO
 
 
 NEW
+    [ ] SS: Bug: Multi-commit picks the most recent commit for the title - should pick oldest
+    [ ] SS: identify when the associated PR is closed
+    [ ] SS: regular user install is broken 'missing tsconfig.json'
+    [ ] SS: Make the finalization easier
 
         
 
@@ -23,8 +25,6 @@ NEW
 IMPORTANT
 
 SOON
-    [ ] Bug: current stack shows title for previous stack if there are no 
-        new commits (ss status)
     [ ] ss new Corner cases:
         [ ] untracked changes warns user to use --force to continue
         [ ] If current branch is not ahead of previous branch, don't create a new one. 
@@ -33,6 +33,7 @@ SOON
     
 LATER
     [ ] Enhance status to show levels that have unresolved commits
+        - should be able to see commits in the PR
     [ ] Enhance status to show needed merges
 
 =============== DONE =========================================================
