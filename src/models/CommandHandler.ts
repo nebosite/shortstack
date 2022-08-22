@@ -397,7 +397,7 @@ export class CommandHandler
             throw new ShortStackError(`The target stack '${targetStackName}' does not have level ${targetLevel}.  Run 'shortstack list' to see available stacks and levels.` )
         }
 
-        this.logger.logLine(`Changing to stack '${targetStackName}', level ${targetLevel}`)
+        this.logger.logLine(`Changing to branch '${level.branchName}'`)
         await this._git.checkout([level.branchName])
     }
 
