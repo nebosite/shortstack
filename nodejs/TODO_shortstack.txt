@@ -1,3 +1,14 @@
+Current process
+    ss next
+        - make sure branch matches .*/\d+$ pattern
+        - warn if there are uncommitted changes
+        - push current branch to origin
+        - If it does not exist, Create a PR for N -> N-1
+            - Ask user for title
+        - new branch N+1
+        
+
+
 TODO
     [x] help - show help
     [x] new - start a new stack
@@ -16,6 +27,15 @@ TODO
     [ ] go - go to a stack
 
 NEW
+    [ ] Shortstack steps:
+        git checkout -b users/ejorgens/deploy/0
+        git push --set-upstream origin users/ejorgens/deploy/0
+        git checkout -b users/ejorgens/deploy/1 -t users/ejorgens/deploy/0
+        #(code changes)
+        git push origin users/ejorgens/deploy/1
+        #(Finally create a new PR to merge back to main)
+
+    [ ] ss: branch 0 does not need to be off of main
     [ ] Command to open the PR on the web
     [ ] test - run ad-hoc test
     [ ] abandon
