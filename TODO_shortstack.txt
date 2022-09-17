@@ -1,0 +1,92 @@
+TODO
+        
+    [x] PR titles shoud start with the prefix "SSnnn: "
+    [x] Help does not show options for subactions
+    [x] go - go to a stack
+    [x] Slightly more details in the help to explain steps
+    [x] Specify assignees in git config   [shortstack] reviewers
+    [ ] SS: Bug: Stack names are wrong - should derive from PR
+    [ ] finish
+        [ ] Create a final 
+    [ ] ss merge
+        merges the entire stack (possibly using rebase)
+    [ ] Set up for debugging, document it
+
+
+NEW
+    [ ] SS: Bug: Multi-commit picks the most recent commit for the title - should pick oldest
+    [ ] SS: identify when the associated PR is closed
+    [ ] SS: regular user install is broken 'missing tsconfig.json'
+    [ ] SS: Make the finalization easier
+
+        
+
+
+IMPORTANT
+
+SOON
+    [ ] ss new Corner cases:
+        [ ] untracked changes warns user to use --force to continue
+        [ ] If current branch is not ahead of previous branch, don't create a new one. 
+        [ ] If user has accidentally git pushed changes, detect that
+    [ ] Start unit testing some of this
+    
+LATER
+    [ ] Enhance status to show levels that have unresolved commits
+        - should be able to see commits in the PR
+    [ ] Enhance status to show needed merges
+
+=============== DONE =========================================================
+    [x] ss next 
+        performs ss push
+        creates next level of the stack
+        error if the current stack does not have any work in it
+        error if we are not at the last level already
+
+    [x] ss status
+        [x] show where we are in the stack
+        [x] show untracked changes
+        [x] Special message if we are not in a stack
+
+    [x] ss new (stackName) [(startingBranch)]
+        [x] Creates stackName/000 that tracks origin/parentBranch
+        [x] Creates stackName/001 that tracks origin/stackName/001
+        [x] Should fail trying to create a stack off a stack
+        
+    [x] ss purge [stackname] delete all the branches of specified stack
+        [x] -remote - remove from remote as well
+        [x] -all - purge all local stacks
+    [x] help - show help
+    [x] new - start a new stack
+        
+            
+            
+    [x] ss push
+        [x] Error if there are no commits to push
+        [x] pushes up commits
+        [x] generates a PR if there isn't one already
+            [x] Set up git helper:
+                [x] get remote details:
+                    git remote -v
+                    origin  git@git.corp.adobe.com:WebPA/tricorder.git (fetch)
+                    origin  git@git.corp.adobe.com:WebPA/tricorder.git (push)
+                [x] Figure out the correct endpoint https://docs.github.com/en/enterprise-server@3.5/rest/guides/getting-started-with-the-rest-api
+                    (It's different on enterprise server vs regular github)
+                    - prepareGitRemote needs to look for SHORTSTACK_GITTOKEN_[remote server]
+                [x] Construct Git Factory
+                    const gitFactory = new GitFactory(xgit.corp.adobe.com", "/apiproxy/", this.settings.gitApiToken);
+                [x] Construct git helper
+                    const gitHelper = gitFactory.getRemoteRepo("WebPA", "sparkler-shell");
+                [x] Add ability to search for PRs based on target(base) or source(head) branches
+                    https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests#search-by-branch-name
+                    
+            [x] Use REST API to query existing PRS
+            [x] Use REST API to generate a PR
+        [x] updates PR description with pushed commits  https://docs.github.com/en/enterprise-server@3.2/rest/pulls/pulls#update-a-pull-request
+            curl \
+              -X PATCH \
+              -H "Accept: application/vnd.github.v3+json" \
+              http(s)://HOSTNAME/api/v3/repos/OWNER/REPO/pulls/PULL_NUMBER \
+              -d '{"title":"new title","body":"updated body","state":"open","base":"master"}'
+        [x] Show error if there are no commits on this stack
+        

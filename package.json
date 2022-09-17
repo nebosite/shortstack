@@ -1,0 +1,43 @@
+{
+  "name": "shortstack",
+  "version": "0.03.01",
+  "description": "Makes the world a better place",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "keywords": [
+    "cli",
+    "npmtool"
+  ],
+  "bin": {
+    "shortstack": "./out/cli.js"
+  },
+  "files": [
+    "out"
+  ],
+  "devDependencies": {
+    "@types/chalk": "^2.2.0",
+    "@types/colors": "^1.2.1",
+    "@types/node": "^12.20.52",
+    "@types/node-fetch": "^2.5.4",
+    "fs-extra": "^10.1.0",
+    "tape": "^4.13.0",
+    "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "chai": "^4.2.0",
+    "chalk": "^3.0.0",
+    "colors": "^1.4.0",
+    "cross-fetch": "^3.1.5",
+    "node-fetch": "^2.6.7",
+    "open": "^8.4.0",
+    "simple-git": "^3.7.1",
+    "ts-node": "^8.8.1",
+    "xlsx": "^0.18.5"
+  }
+}
