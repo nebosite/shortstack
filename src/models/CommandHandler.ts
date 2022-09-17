@@ -55,14 +55,29 @@ export class CommandHandler
             throw new ShortStackError("Could not find origin info from remote -v.  Is this directory in a repo?")
         }
 
-        const gitMatch = originLine.match(/\w+?\s+(\w+)@([^:]+):([^\/]+)\/(.*).git/)
+        let gitMatch = originLine.match(/\w+?\s+(\w+)@([^:]+):([^\/]+)\/(.*).git/i)
+        let host = "unknown"
+        let repoParent = "unknown"
+        let repoName = "unknown"
+
+        if(gitMatch) {
+            host = `${gitMatch[2]}`;
+            repoParent =  `${gitMatch[3]}`;
+            repoName =  `${gitMatch[4]}`;
+        }
         if(!gitMatch) {
-            throw new ShortStackError("Could not find remoteInfo for this git repo.")
+            gitMatch = originLine.match(/https.*\/\/(.+?)\/(.+)\/(.*)\.git/i)
+            if(gitMatch) {
+                host = `${gitMatch[1]}`;
+                repoParent =  `${gitMatch[2]}`;
+                repoName =  `${gitMatch[3]}`;
+                }
         }
 
-        const host = `${gitMatch[2]}`;
-        const repoParent =  `${gitMatch[3]}`;
-        const repoName =  `${gitMatch[4]}`;
+        if(!gitMatch) {
+            throw new ShortStackError(`Could not find remoteInfo for this git repo. (${originLine})`)
+        }
+
         this._gitBaseURL =  `https://${host}/${repoParent}/${repoName}`
 
         this._stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
