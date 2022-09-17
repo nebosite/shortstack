@@ -336,9 +336,17 @@ class CommandHandler {
                     throw new ShortStackError("There is unpushed work at the current level.  Run 'shortstack push' before switching off this stack.");
                 }
             }
-            const targetStack = this._stackInfo.stacks.find(s => s.name.toLowerCase() === (targetStackName === null || targetStackName === void 0 ? void 0 : targetStackName.toLowerCase()));
+            let targetStack = this._stackInfo.stacks.find(s => s.name.toLowerCase() === (targetStackName === null || targetStackName === void 0 ? void 0 : targetStackName.toLowerCase()));
             if (!targetStack) {
-                throw new ShortStackError(`Could not find a stack called '${targetStackName}'.  Run 'shortstack list' to see available stacks`);
+                const matcher = new RegExp(targetStackName, "i");
+                const otherStacks = this._stackInfo.stacks.filter(s => matcher.exec(s.name) ? true : false);
+                if (otherStacks.length === 1) {
+                    targetStack = otherStacks[0];
+                }
+            }
+            if (!targetStack) {
+                const stackNames = this._stackInfo.stacks.map(s => s.name);
+                throw new ShortStackError(`Could not find a stack called '${targetStackName}'.\nAvailable stacks:\n    ${stackNames.join('\n    ')}\nRun 'shortstack list' to see more info on stacks`);
             }
             if (targetLevel === 0)
                 targetLevel = targetStack.nextLevelNumber - 1;
@@ -346,7 +354,7 @@ class CommandHandler {
             if (!level) {
                 throw new ShortStackError(`The target stack '${targetStackName}' does not have level ${targetLevel}.  Run 'shortstack list' to see available stacks and levels.`);
             }
-            this.logger.logLine(`Changing to stack '${targetStackName}', level ${targetLevel}`);
+            this.logger.logLine(`Changing to branch '${level.branchName}'`);
             yield this._git.checkout([level.branchName]);
         });
     }

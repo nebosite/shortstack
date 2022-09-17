@@ -47,8 +47,12 @@ E.g.:
 ----------------------------------------------------------------------------- */
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function")
+        r = Reflect.decorate(decorators, target, key, desc);
+    else
+        for (var i = decorators.length - 1; i >= 0; i--)
+            if (d = decorators[i])
+                r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -61,7 +65,7 @@ var ParameterType;
     ParameterType["Positional"] = "Positional";
     ParameterType["NameValue"] = "NameValue";
     ParameterType["Flag"] = "Flag";
-    ParameterType["Environment"] = "Environment";
+    ParameterType["Environment"] = "PositiEnvironmentonal";
     ParameterType["Remaining"] = "Remaining";
     ParameterType["SubCommand"] = "SubCommand"; // A string subcommand with separate parameters
 })(ParameterType || (ParameterType = {}));
@@ -117,13 +121,6 @@ function genericParameter(type, args) {
         properties.set(key, details);
     };
 }
-//------------------------------------------------------------------------------
-// NameValueParameter decorator
-//------------------------------------------------------------------------------
-function nameValueParameter(args) {
-    return genericParameter(ParameterType.NameValue, args);
-}
-exports.nameValueParameter = nameValueParameter;
 //------------------------------------------------------------------------------
 // positionalParameter decorator
 //------------------------------------------------------------------------------
@@ -376,61 +373,61 @@ function getParameters(options) {
 function formatOverflow(leftMargin, rightMargin, text) {
     text += " ";
     const output = new Array();
-    for (const line of text.split("\n")) {
-        let currentLine = "";
-        let currentWord = "";
-        const flushLine = () => {
-            output.push(currentLine);
-            currentLine = " ".repeat(leftMargin) + currentWord;
-            currentWord = "";
-        };
-        for (let i = 0; i < line.length; i++) {
-            // skip space at the start of the line
-            if (line[i].match(/\s/)) {
-                if (currentWord !== "") {
-                    if ((currentLine.length + currentWord.length) >= rightMargin) {
-                        flushLine();
-                    }
-                    else {
-                        currentLine += currentWord;
-                        currentWord = "";
-                    }
-                }
-                if (line[i] == '\n')
+    let currentLine = "";
+    let currentWord = "";
+    let currentLineHasText = true;
+    const flushLine = () => {
+        output.push(currentLine);
+        currentLine = " ".repeat(leftMargin) + currentWord;
+        currentLineHasText = currentWord != "";
+        currentWord = "";
+    };
+    for (let i = 0; i < text.length; i++) {
+        // skip space at the start of the line
+        if (text[i] == ' ' && !currentLineHasText)
+            continue;
+        if (text[i].match(/\s/)) {
+            if (currentWord !== "") {
+                if ((currentLine.length + currentWord.length) >= rightMargin) {
                     flushLine();
-                else
-                    currentLine += line[i];
+                }
+                else {
+                    currentLine += currentWord;
+                    currentLineHasText = true;
+                    currentWord = "";
+                }
             }
-            else {
-                currentWord += line[i];
-            }
+            if (text[i] == '\n')
+                flushLine();
+            else
+                currentLine += text[i];
         }
-        if (currentWord !== "")
-            currentLine += currentWord;
-        if (currentLine != "")
-            flushLine();
+        else {
+            currentWord += text[i];
+        }
     }
+    if (currentLine != "")
+        flushLine();
     return output.join("\n");
 }
 //------------------------------------------------------------------------------
 // Show usage text for the options object
 //------------------------------------------------------------------------------
 function showUsage(options, printLine) {
-    var _a, _b;
     let usageLine = "";
     usageLine += `USAGE: ${options.commandName} `;
     const details = new Array();
     const environmentDetails = new Array();
     const parameters = getParameters(options);
     if (parameters) {
-        const braceIfRequired = (required, text) => required ? `[${text}]` : `(${text})`;
-        const flagUsage = (arg) => {
-            let flags = "-" + arg.propertyName;
-            if (arg.alternateNames) {
-                flags = "-" + arg.alternateNames.join("|-");
-            }
-            return flags;
+        const quickLine = (name, description) => {
+            let output = name;
+            output += " ".repeat(40 - output.length);
+            if (description)
+                output += description;
+            return output;
         };
+        const braceIfRequired = (required, text) => required ? text : `(${text})`;
         const sortedParameters = Array.from(parameters.values()).sort((v1, v2) => {
             if (v1.propertyName === "showHelp")
                 return 1;
@@ -454,55 +451,32 @@ function showUsage(options, printLine) {
             switch (parameter.type) {
                 case ParameterType.Positional:
                     usageLine += " " + braceIfRequired(parameter.required, `[${parameter.propertyName}]`);
-                    details.push(parameter.propertyName);
-                    details.push("    " + parameter.description);
+                    details.push(quickLine(parameter.propertyName, parameter.description));
                     break;
                 case ParameterType.Flag:
-                    let flags = flagUsage(parameter);
+                    let flags = "-" + parameter.propertyName;
+                    if (parameter.alternateNames) {
+                        flags = "-" + parameter.alternateNames.join("|-");
+                    }
                     usageLine += " " + braceIfRequired(parameter.required, flags);
-                    details.push(flags);
-                    details.push("    " + parameter.description);
+                    details.push(quickLine(flags, parameter.description));
                     break;
                 case ParameterType.Environment:
                     let envNames = [parameter.propertyName];
                     if (parameter.alternateNames && parameter.alternateNames.length > 0) {
                         envNames = parameter.alternateNames;
                     }
-                    details.push(envNames.join("|"));
-                    details.push("    " + parameter.description);
+                    environmentDetails.push(quickLine(envNames.join("|"), parameter.description));
                     break;
                 case ParameterType.Remaining:
                     usageLine += " " + braceIfRequired(parameter.required, `[${parameter.propertyName}...]`);
-                    details.push(parameter.propertyName);
-                    details.push("    " + parameter.description);
+                    details.push(quickLine(parameter.propertyName, parameter.description));
                     break;
                 case ParameterType.SubCommand:
                     const subCommandNames = new Array();
                     for (const commandType of parameter.decoratorConfig.commands) {
                         const subCommandOptions = CreateOptions(commandType, []);
-                        const subItems = [];
-                        const subParams = getParameters(subCommandOptions); // getParameterMap(commandType, true)
-                        for (const param of Array.from(subParams.keys())) {
-                            if (param === "showHelp")
-                                continue;
-                            const arg = subParams.get(param);
-                            const usageText = (arg === null || arg === void 0 ? void 0 : arg.type) === ParameterType.Flag ? flagUsage(arg) : param;
-                            subItems.push({
-                                name: param,
-                                usage: braceIfRequired((_a = arg === null || arg === void 0 ? void 0 : arg.required) !== null && _a !== void 0 ? _a : true, usageText),
-                                help: (_b = arg === null || arg === void 0 ? void 0 : arg.description) !== null && _b !== void 0 ? _b : "---"
-                            });
-                            // check for property in subParams 
-                        }
-                        // TODO: generically pull out the usage for this subcommand
-                        // const subItems = [
-                        //     { name: "foo", usage: "foo", help: "specify which foo"},
-                        //     { name: "bar", usage: "[bar]", help: "specify which bar"},
-                        // ]
-                        const subUsage = subItems.map(i => i.usage).join(" ");
-                        details.push(`${subCommandOptions.commandName} ${subUsage}`);
-                        details.push("    " + subCommandOptions.shortDescription);
-                        subItems.forEach(i => details.push(`        ${i.name}: ${i.help}`));
+                        details.push(quickLine(subCommandOptions.commandName, subCommandOptions.shortDescription));
                         subCommandNames.push(subCommandOptions.commandName);
                     }
                     usageLine += " " + braceIfRequired(parameter.required, `(${subCommandNames.join("|")}) (options)`);
