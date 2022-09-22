@@ -119,7 +119,24 @@ export class CommandHandler
 
     }
 
-    
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async getLevelLabelDetails(level: StackItem) {
+        const info = await this.getGitInfo(level)
+        const id = level.levelNumber.toString().padStart(3,"0")
+        const label = info.currentPr 
+                ? `${info.currentPr.title} (${info.currentPr.state})` 
+                : "** Active **"
+  
+        return {
+            pr: info.currentPr,
+            commits: info.commitInfo,
+            id,
+            label,
+        }
+    }
+
     //------------------------------------------------------------------------------
     // list - show existing stacks
     //------------------------------------------------------------------------------
@@ -134,16 +151,22 @@ export class CommandHandler
             for(const stack of this._stackInfo!.stacks) {
 
                 const sameStack = stack.name === this._stackInfo!.current?.parent?.name
-                const stackHighlight = sameStack ? chalk.greenBright : (t: string) => t
+                let stackHighlight = sameStack 
+                    ? (t:string) => chalk.whiteBright(chalk.bgGreen(t)) 
+                    : (t: string) => chalk.white(t) 
                 
-                this.logger.logLine(chalk.gray(stackHighlight(`    ${stack.name}  (Tracks: ${stack.sourceBranch})`)));
+                this.logger.logLine("    " + stackHighlight(`${stack.name}  (Tracks: ${stack.sourceBranch})`));
                 for(const level of stack.levels)
                 {
-                    const sameLevel = sameStack && level.levelNumber === this._stackInfo!.current?.levelNumber
-                    const levelHighlight = sameLevel ? chalk.greenBright : (t: string) => t
-    
                     if(level.levelNumber == 0) continue;
-                    this.logger.logLine(chalk.gray(`        ` + levelHighlight(`${level.levelNumber.toString().padStart(3,"0")} ${level.label}`)))
+                    const sameLevel = sameStack && level.levelNumber === this._stackInfo!.current?.levelNumber
+                    const details = await this.getLevelLabelDetails(level);
+                    let levelHighlight = (t:string) => chalk.green(t)
+
+                    if(details.pr?.state !== "open") levelHighlight = chalk.blackBright;
+                    if(sameLevel) levelHighlight =  (t: string) => chalk.whiteBright(chalk.bgGreen(t)) 
+                    
+                    this.logger.logLine(`        ` + levelHighlight(`${details.id} ${details.label}`))
                 }
             }
         }
@@ -163,13 +186,18 @@ export class CommandHandler
         for(const level of stack.levels)
         {
             if(level.levelNumber == 0) continue;
-            const levelText = `${level.levelNumber.toString().padStart(3,"0")} ${level.label}`
+            const details = await this.getLevelLabelDetails(level);
+            const levelText = `${details.id} ${details.label}`
+
+            let highlight = (t: string) => chalk.gray(t);
+            let prefix = "        "
+
             if(level.levelNumber === this._stackInfo!.current!.levelNumber) {
-                this.logger.logLine(chalk.whiteBright("    --> " + levelText))
+                highlight =  (t: string) => chalk.whiteBright(t);
+                prefix = "    --> " 
             }
-            else {
-                this.logger.logLine(chalk.gray       ("        " + levelText))
-            }
+
+            this.logger.logLine(highlight( prefix + levelText))
         }
     }
 
@@ -265,7 +293,7 @@ export class CommandHandler
                 currentPr = existingPRs[0]
             }
             if(existingPRs.length > 1) {
-                this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].id}`)
+                this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].number}`)
             }
         }
 

@@ -6,16 +6,16 @@ TODO
     [x] Slightly more details in the help to explain steps
     [x] Specify assignees in git config   [shortstack] reviewers
     [ ] SS: Bug: Stack names are wrong - should derive from PR
-    [ ] finish
-        [ ] Create a final 
+    [ ] SS: Bug: Multi-commit picks the most recent commit for the title - should pick oldest
+    [ ] SS: identify when the associated PR is closed
     [ ] ss merge
         merges the entire stack (possibly using rebase)
+    [ ] finish
+        [ ] Create a final 
     [ ] Set up for debugging, document it
 
 
 NEW
-    [ ] SS: Bug: Multi-commit picks the most recent commit for the title - should pick oldest
-    [ ] SS: identify when the associated PR is closed
     [ ] SS: regular user install is broken 'missing tsconfig.json'
     [ ] SS: Make the finalization easier
 

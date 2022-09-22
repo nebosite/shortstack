@@ -25,7 +25,6 @@ export class StackItem {
     levelNumber: number;
     get branchName() { return constructStackLevelBranchName(this.parent.name, this.levelNumber)}
     get previousBranchName() {  return constructStackLevelBranchName(this.parent.name, this.levelNumber - 1)}
-    label?: string;
 
     //------------------------------------------------------------------------------
     // ctor
@@ -149,7 +148,7 @@ export class StackInfo {
                     continue; 
                 }
                 const newLevel = new StackItem(myStack, levelNumber);
-                newLevel.label = branchInfo.label;
+
                 myStack.levels[levelNumber] = newLevel;
 
                 if(branchName == currentBranch) {
