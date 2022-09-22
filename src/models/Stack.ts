@@ -24,7 +24,10 @@ export class StackItem {
     parent: Stack;
     levelNumber: number;
     get branchName() { return constructStackLevelBranchName(this.parent.name, this.levelNumber)}
-    get previousBranchName() {  return constructStackLevelBranchName(this.parent.name, this.levelNumber - 1)}
+    get previousBranchName() {  
+        if(this.levelNumber === 0) return this.parent.sourceBranch
+        return constructStackLevelBranchName(this.parent.name, this.levelNumber - 1)
+    }
 
     //------------------------------------------------------------------------------
     // ctor
@@ -132,11 +135,20 @@ export class StackInfo {
                 const stackName = match[1];
                 const levelNumber = parseInt(match[2]);
                 if(levelNumber === 0) {
-                    const logDetails = await git.log(["-n", "1", branchInfo.commit])
-                    const firstCommitMessage = logDetails.all[0].message
+                    let logDetails = await git.log(["-n", "1", branchInfo.commit])
+                    let firstCommitMessage = logDetails.all[0].message
                     if(!firstCommitMessage.startsWith(INFO_TAG_NAME)){
-                        console.log(chalk.yellowBright(`Warning: No ${INFO_TAG_NAME} commit on stack '${stackName}'`))    
-                        continue;
+                        logDetails = await git.log(["-n", "1000", branchInfo.commit])
+                        for(let i = 1; i < 100; i++) {
+                            firstCommitMessage = logDetails.all[i].message ?? "undefined"
+                            if(firstCommitMessage.startsWith(INFO_TAG_NAME)){
+                                break;
+                            }
+                        } 
+                        if(!firstCommitMessage.startsWith(INFO_TAG_NAME)){
+                            console.log(chalk.yellowBright(`Warning: No ${INFO_TAG_NAME} commit on stack '${stackName} ${firstCommitMessage}'`))    
+                            continue;
+                        }
                     }
                     const infoObject = JSON.parse(firstCommitMessage.substring(INFO_TAG_NAME.length+1)) as ShortStackInfo
                     output._stacks.set(stackName, new Stack(git, stackName, infoObject.sourceBranch, output.remoteName ))
