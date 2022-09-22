@@ -5,6 +5,7 @@ import chalk from "chalk";
 import { GitFactory, GitPullRequest, GitRemoteRepo } from "../Helpers/Githelper";
 import { ILogger } from "../Helpers/logger"
 import open from 'open';
+import * as ping from "ping"
 
 export class ShortStackError extends Error{ }
 export class CommandHandler 
@@ -65,6 +66,20 @@ export class CommandHandler
         const repoName =  `${gitMatch[4]}`;
         this._gitBaseURL =  `https://${host}/${repoParent}/${repoName}`
 
+        try {
+            await new Promise<void>((resolve, reject) => {
+                ping.sys.probe(host, function(isAlive, err){
+                        if(!isAlive) reject()
+                        resolve();
+                    },  { timeout: 3 });
+            })            
+        }
+        catch(err) {
+            throw new ShortStackError(`Could not reach github server: ${host}`)
+        }
+
+        
+        
         this._stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
 
         const envTokenName = "SHORTSTACK_GIT_TOKEN_" + host.replace(/\./g, "_")
