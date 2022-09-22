@@ -1,4 +1,4 @@
-import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions, ShortStackStatusOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackNextOptions, ShortStackGoOptions } from "./ShortStackOptions";
+import { ShortStackOptions, ShortStackNewOptions, ShortStackListOptions, ShortStackStatusOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackNextOptions, ShortStackGoOptions, ShortStackMergeOptions } from "./ShortStackOptions";
 import chalk from "chalk"
 import { CommandHandler, ShortStackError } from "./models/CommandHandler";
 import { CreateOptions } from "./Helpers/CommandLineHelper";
@@ -41,13 +41,14 @@ async function main() {
         const handler = new CommandHandler(new ConsoleLogger());
         switch(options.action.commandName)
         {
-            case "new":  await handler.new(options.action! as ShortStackNewOptions); break;
-            case "go":  await handler.go(options.action! as ShortStackGoOptions); break;
-            case "list":  await handler.list(options.action! as ShortStackListOptions); break;
-            case "status": await handler.status(options.action! as ShortStackStatusOptions); break;
-            case "purge": await handler.purge(options.action! as ShortStackPurgeOptions); break;
-            case "push": await handler.push(options.action! as ShortStackPushOptions); break;
-            case "next": await handler.next(options.action! as ShortStackNextOptions); break;
+            case "new":     await handler.new(options.action! as ShortStackNewOptions); break;
+            case "go":      await handler.go(options.action! as ShortStackGoOptions); break;
+            case "merge":   await handler.merge(options.action! as ShortStackMergeOptions); break;
+            case "list":    await handler.list(options.action! as ShortStackListOptions); break;
+            case "status":  await handler.status(options.action! as ShortStackStatusOptions); break;
+            case "purge":   await handler.purge(options.action! as ShortStackPurgeOptions); break;
+            case "push":    await handler.push(options.action! as ShortStackPushOptions); break;
+            case "next":    await handler.next(options.action! as ShortStackNextOptions); break;
             default: throw new ShortStackError(`Unknown action: ${options.action.commandName}`) 
         }
         return 0;

@@ -1,4 +1,4 @@
-import { ShortStackGoOptions, ShortStackListOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackGoOptions, ShortStackListOptions, ShortStackMergeOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo, StackItem} from "./Stack"
 import chalk from "chalk";
@@ -149,6 +149,65 @@ export class CommandHandler
             commits: info.commitInfo,
             id,
             label,
+        }
+    }
+    //------------------------------------------------------------------------------
+    // merge - make the stack consistent
+    //------------------------------------------------------------------------------
+    async merge(options: ShortStackMergeOptions) 
+    {
+        await this._initTask;
+        await this.checkForDanglingWork(true);
+        this.assertCurrentStack();
+    
+        const stack = this._stackInfo!.current!.parent;
+        this.logger.logLine(`MERGING ${stack.name}`)
+
+        for(let stackLevel = 1; stackLevel < stack.levels.length; stackLevel++) {
+            const level = stack.levels[stackLevel]
+            let previousBranch = stackLevel === 1
+                ? level.parent.sourceBranch
+                : level.previousBranchName;
+
+            try {
+                // only pull from the source branch if the full flag is given
+                if(stackLevel > 1 || options.full) {
+                    this.logger.logLine(`    LEVEL ${level.levelNumber}`)
+                    this.logger.logLine(`        Checkout ${previousBranch}`)
+                    const checkoutResponse = await this._git.checkout([previousBranch])
+                    this.logger.logLine(`            ${checkoutResponse.split("\n")[0]}`)
+                    
+                    this.logger.logLine(`        pull`)
+                    const pullResponse = await this._git.pull()
+                    this.logger.logLine(`            Pulled ${pullResponse.summary.changes} changes, ${pullResponse.summary.deletions} deletions, ${pullResponse.summary.insertions} insertions`)
+
+                    this.logger.logLine(`        Checkout ${level.branchName}`)
+                    const checkoutResponse2 = await this._git.checkout([level.branchName])
+                    this.logger.logLine(`            ${checkoutResponse2.split("\n")[0]}`)
+                    
+                    this.logger.logLine(`        merge  ${previousBranch}`)
+                    const mergeResponse = await this._git.merge([previousBranch])
+                    this.logger.logLine(`            ${mergeResponse.result}`)
+                    if(mergeResponse.result !== "success")  throw Error("Cannot auto-merge")
+                }
+                else {
+                    this.logger.logLine(`        Checkout ${level.branchName}`)
+                    const checkoutResponse2 = await this._git.checkout([level.branchName])
+                    this.logger.logLine(`            ${checkoutResponse2.split("\n")[0]}`)                 
+                }
+                this.logger.logLine(`        push origin ${level.branchName}`)
+                const pushResponse = await this._git.push(["origin", level.branchName])
+                if(pushResponse.remoteMessages.all.length === 0) {
+                    this.logger.logLine(`            success`)
+                }
+                else {
+                    throw Error(pushResponse.remoteMessages.all.join("\n"))
+                }
+            }
+            catch(err) {
+                this.logger.logLine(chalk.yellowBright(`${err}.\nPlease fix by hand and rerun the command.`))
+                return;
+            }
         }
     }
 
