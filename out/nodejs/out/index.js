@@ -2,8 +2,18 @@
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function fulfilled(value) { try {
+            step(generator.next(value));
+        }
+        catch (e) {
+            reject(e);
+        } }
+        function rejected(value) { try {
+            step(generator["throw"](value));
+        }
+        catch (e) {
+            reject(e);
+        } }
         function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
@@ -16,8 +26,6 @@ const ShortStackOptions_1 = require("./ShortStackOptions");
 const chalk_1 = __importDefault(require("chalk"));
 const CommandHandler_1 = require("./models/CommandHandler");
 const CommandLineHelper_1 = require("./Helpers/CommandLineHelper");
-const UserInput_1 = require("./UserInput");
-const logger_1 = require("./Helpers/logger");
 //------------------------------------------------------------------------------
 // main
 //------------------------------------------------------------------------------
@@ -29,10 +37,6 @@ function main() {
         }));
         try {
             const options = CommandLineHelper_1.CreateOptions(ShortStackOptions_1.ShortStackOptions);
-            if (options.debug) {
-                const input = new UserInput_1.UserInput();
-                yield input.getUserInput(`Pausing so you can attach a debugger. Press [Enter] when ready...`);
-            }
             if (options.showHelp) {
                 options.showUsage();
                 return 0;
@@ -46,30 +50,19 @@ function main() {
             }
             if (!options.action)
                 throw Error("No action specified.");
-            const handler = new CommandHandler_1.CommandHandler(new logger_1.ConsoleLogger());
+            const handler = new CommandHandler_1.CommandHandler(console.log);
+            yield handler.init();
             switch (options.action.commandName) {
                 case "new":
                     yield handler.new(options.action);
                     break;
                 case "go":
-                    yield handler.go(options.action);
+                    console.log("GO");
                     break;
                 case "list":
                     yield handler.list(options.action);
                     break;
-                case "status":
-                    yield handler.status(options.action);
-                    break;
-                case "purge":
-                    yield handler.purge(options.action);
-                    break;
-                case "push":
-                    yield handler.push(options.action);
-                    break;
-                case "next":
-                    yield handler.next(options.action);
-                    break;
-                default: throw new CommandHandler_1.ShortStackError(`Unknown action: ${options.action.commandName}`);
+                default: throw Error(`Unknown action: ${options.action}`);
             }
             return 0;
         }
