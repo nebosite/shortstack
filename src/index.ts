@@ -16,11 +16,19 @@ async function main() {
     });
 
     try {
-        const options = CreateOptions(ShortStackOptions);
-        if(options.debug) {
+        let debug = false;
+        process.argv.slice(2).forEach(a => {
+            if(a.match(/debug$/i)) {
+                debug = true;
+            }
+        })
+
+        if(debug) {
             const input = new UserInput();
             await input.getUserInput(`Pausing so you can attach a debugger. Press [Enter] when ready...`)
         }
+
+        const options = CreateOptions(ShortStackOptions);
       
         if(options.showHelp)
         {
