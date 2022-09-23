@@ -33,7 +33,11 @@ class StackItem {
         this.levelNumber = levelNumber;
     }
     get branchName() { return constructStackLevelBranchName(this.parent.name, this.levelNumber); }
-    get previousBranchName() { return constructStackLevelBranchName(this.parent.name, this.levelNumber - 1); }
+    get previousBranchName() {
+        if (this.levelNumber === 0)
+            return this.parent.sourceBranch;
+        return constructStackLevelBranchName(this.parent.name, this.levelNumber - 1);
+    }
 }
 exports.StackItem = StackItem;
 //------------------------------------------------------------------------------
@@ -94,6 +98,7 @@ class StackInfo {
     // discover all the local stacks
     //------------------------------------------------------------------------------
     static Create(git, currentBranch) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             const output = new StackInfo(git);
             const branchSummary = yield git.branchLocal();
@@ -111,11 +116,20 @@ class StackInfo {
                     const stackName = match[1];
                     const levelNumber = parseInt(match[2]);
                     if (levelNumber === 0) {
-                        const logDetails = yield git.log(["-n", "1", branchInfo.commit]);
-                        const firstCommitMessage = logDetails.all[0].message;
+                        let logDetails = yield git.log(["-n", "1", branchInfo.commit]);
+                        let firstCommitMessage = logDetails.all[0].message;
                         if (!firstCommitMessage.startsWith(INFO_TAG_NAME)) {
-                            console.log(chalk_1.default.yellowBright(`Warning: No ${INFO_TAG_NAME} commit on stack '${stackName}'`));
-                            continue;
+                            logDetails = yield git.log(["-n", "1000", branchInfo.commit]);
+                            for (let i = 1; i < 100; i++) {
+                                firstCommitMessage = (_a = logDetails.all[i].message) !== null && _a !== void 0 ? _a : "undefined";
+                                if (firstCommitMessage.startsWith(INFO_TAG_NAME)) {
+                                    break;
+                                }
+                            }
+                            if (!firstCommitMessage.startsWith(INFO_TAG_NAME)) {
+                                console.log(chalk_1.default.yellowBright(`Warning: No ${INFO_TAG_NAME} commit on stack '${stackName} ${firstCommitMessage}'`));
+                                continue;
+                            }
                         }
                         const infoObject = JSON.parse(firstCommitMessage.substring(INFO_TAG_NAME.length + 1));
                         output._stacks.set(stackName, new Stack(git, stackName, infoObject.sourceBranch, output.remoteName));
@@ -126,7 +140,6 @@ class StackInfo {
                         continue;
                     }
                     const newLevel = new StackItem(myStack, levelNumber);
-                    newLevel.label = branchInfo.label;
                     myStack.levels[levelNumber] = newLevel;
                     if (branchName == currentBranch) {
                         output.current = newLevel;

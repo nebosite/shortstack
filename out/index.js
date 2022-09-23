@@ -28,11 +28,17 @@ function main() {
             process.exit(1);
         }));
         try {
-            const options = CommandLineHelper_1.CreateOptions(ShortStackOptions_1.ShortStackOptions);
-            if (options.debug) {
+            let debug = false;
+            process.argv.slice(2).forEach(a => {
+                if (a.match(/debug$/i)) {
+                    debug = true;
+                }
+            });
+            if (debug) {
                 const input = new UserInput_1.UserInput();
                 yield input.getUserInput(`Pausing so you can attach a debugger. Press [Enter] when ready...`);
             }
+            const options = CommandLineHelper_1.CreateOptions(ShortStackOptions_1.ShortStackOptions);
             if (options.showHelp) {
                 options.showUsage();
                 return 0;
@@ -53,6 +59,9 @@ function main() {
                     break;
                 case "go":
                     yield handler.go(options.action);
+                    break;
+                case "merge":
+                    yield handler.merge(options.action);
                     break;
                 case "list":
                     yield handler.list(options.action);

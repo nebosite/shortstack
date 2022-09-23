@@ -53,6 +53,21 @@ __decorate([
 ], ShortStackGoOptions.prototype, "level", void 0);
 exports.ShortStackGoOptions = ShortStackGoOptions;
 //------------------------------------------------------------------------------
+// merge command options
+//------------------------------------------------------------------------------
+class ShortStackMergeOptions extends SubOptions {
+    constructor() {
+        super(...arguments);
+        this.commandName = "merge";
+        this.shortDescription = `merge changes from the top of the stack to the bottom so it is consistent`;
+        this.full = null;
+    }
+}
+__decorate([
+    CommandLineHelper_1.flagParameter({ description: "Pull in external changes from the source branch (ie: merge from main)", alternateNames: ["f"] })
+], ShortStackMergeOptions.prototype, "full", void 0);
+exports.ShortStackMergeOptions = ShortStackMergeOptions;
+//------------------------------------------------------------------------------
 // list command options
 //------------------------------------------------------------------------------
 class ShortStackListOptions extends SubOptions {
@@ -175,6 +190,7 @@ __decorate([
             ShortStackNewOptions,
             ShortStackGoOptions,
             ShortStackListOptions,
+            ShortStackMergeOptions,
             ShortStackStatusOptions,
             ShortStackPurgeOptions,
             ShortStackPushOptions,
