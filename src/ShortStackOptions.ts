@@ -34,6 +34,17 @@ export class ShortStackGoOptions extends SubOptions {
 }
 
 //------------------------------------------------------------------------------
+// merge command options
+//------------------------------------------------------------------------------
+export class ShortStackMergeOptions extends SubOptions { 
+    commandName= "merge"
+    shortDescription= `merge changes from the top of the stack to the bottom so it is consistent`
+
+    @flagParameter({description: "Pull in external changes from the source branch (ie: merge from main)", alternateNames: ["f"]})
+    full: string | null = null;
+}
+
+//------------------------------------------------------------------------------
 // list command options
 //------------------------------------------------------------------------------
 export class ShortStackListOptions extends SubOptions { 
@@ -127,6 +138,7 @@ export class ShortStackOptions extends CommandLineOptionsClass {
             ShortStackNewOptions, 
             ShortStackGoOptions, 
             ShortStackListOptions, 
+            ShortStackMergeOptions, 
             ShortStackStatusOptions, 
             ShortStackPurgeOptions,
             ShortStackPushOptions,

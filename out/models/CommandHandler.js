@@ -11,12 +11,20 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const simple_git_1 = __importDefault(require("simple-git"));
 const Stack_1 = require("./Stack");
 const chalk_1 = __importDefault(require("chalk"));
 const Githelper_1 = require("../Helpers/Githelper");
 const open_1 = __importDefault(require("open"));
+const ping = __importStar(require("ping"));
 class ShortStackError extends Error {
 }
 exports.ShortStackError = ShortStackError;
@@ -65,6 +73,18 @@ class CommandHandler {
             const repoParent = `${gitMatch[3]}`;
             const repoName = `${gitMatch[4]}`;
             this._gitBaseURL = `https://${host}/${repoParent}/${repoName}`;
+            try {
+                yield new Promise((resolve, reject) => {
+                    ping.sys.probe(host, function (isAlive, err) {
+                        if (!isAlive)
+                            reject();
+                        resolve();
+                    }, { timeout: 3 });
+                });
+            }
+            catch (err) {
+                throw new ShortStackError(`Could not reach github server: ${host}`);
+            }
             this._stackInfo = yield Stack_1.StackInfo.Create(this._git, this.currentBranch);
             const envTokenName = "SHORTSTACK_GIT_TOKEN_" + host.replace(/\./g, "_");
             if (!process.env[envTokenName]) {
@@ -107,11 +127,84 @@ class CommandHandler {
             }
         });
     }
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    getLevelLabelDetails(level) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const info = yield this.getGitInfo(level);
+            const id = level.levelNumber.toString().padStart(3, "0");
+            const label = info.currentPr
+                ? `${info.currentPr.title} (${info.currentPr.state})`
+                : "** Active **";
+            return {
+                pr: info.currentPr,
+                commits: info.commitInfo,
+                id,
+                label,
+            };
+        });
+    }
+    //------------------------------------------------------------------------------
+    // merge - make the stack consistent
+    //------------------------------------------------------------------------------
+    merge(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this._initTask;
+            yield this.checkForDanglingWork(true);
+            this.assertCurrentStack();
+            const stack = this._stackInfo.current.parent;
+            this.logger.logLine(`MERGING ${stack.name}`);
+            for (let stackLevel = 1; stackLevel < stack.levels.length; stackLevel++) {
+                const level = stack.levels[stackLevel];
+                let previousBranch = stackLevel === 1
+                    ? level.parent.sourceBranch
+                    : level.previousBranchName;
+                try {
+                    // only pull from the source branch if the full flag is given
+                    if (stackLevel > 1 || options.full) {
+                        this.logger.logLine(`    LEVEL ${level.levelNumber}`);
+                        this.logger.logLine(`        Checkout ${previousBranch}`);
+                        const checkoutResponse = yield this._git.checkout([previousBranch]);
+                        this.logger.logLine(`            ${checkoutResponse.split("\n")[0]}`);
+                        this.logger.logLine(`        pull`);
+                        const pullResponse = yield this._git.pull();
+                        this.logger.logLine(`            Pulled ${pullResponse.summary.changes} changes, ${pullResponse.summary.deletions} deletions, ${pullResponse.summary.insertions} insertions`);
+                        this.logger.logLine(`        Checkout ${level.branchName}`);
+                        const checkoutResponse2 = yield this._git.checkout([level.branchName]);
+                        this.logger.logLine(`            ${checkoutResponse2.split("\n")[0]}`);
+                        this.logger.logLine(`        merge  ${previousBranch}`);
+                        const mergeResponse = yield this._git.merge([previousBranch]);
+                        this.logger.logLine(`            ${mergeResponse.result}`);
+                        if (mergeResponse.result !== "success")
+                            throw Error("Cannot auto-merge");
+                    }
+                    else {
+                        this.logger.logLine(`        Checkout ${level.branchName}`);
+                        const checkoutResponse2 = yield this._git.checkout([level.branchName]);
+                        this.logger.logLine(`            ${checkoutResponse2.split("\n")[0]}`);
+                    }
+                    this.logger.logLine(`        push origin ${level.branchName}`);
+                    const pushResponse = yield this._git.push(["origin", level.branchName]);
+                    if (pushResponse.remoteMessages.all.length === 0) {
+                        this.logger.logLine(`            success`);
+                    }
+                    else {
+                        throw Error(pushResponse.remoteMessages.all.join("\n"));
+                    }
+                }
+                catch (err) {
+                    this.logger.logLine(chalk_1.default.yellowBright(`${err}.\nPlease fix by hand and rerun the command.`));
+                    return;
+                }
+            }
+        });
+    }
     //------------------------------------------------------------------------------
     // list - show existing stacks
     //------------------------------------------------------------------------------
     list(options) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         return __awaiter(this, void 0, void 0, function* () {
             yield this._initTask;
             if (this._stackInfo.stacks.length == 0) {
@@ -121,14 +214,21 @@ class CommandHandler {
                 this.logger.logLine("Discovered these stacks:");
                 for (const stack of this._stackInfo.stacks) {
                     const sameStack = stack.name === ((_b = (_a = this._stackInfo.current) === null || _a === void 0 ? void 0 : _a.parent) === null || _b === void 0 ? void 0 : _b.name);
-                    const stackHighlight = sameStack ? chalk_1.default.greenBright : (t) => t;
-                    this.logger.logLine(chalk_1.default.gray(stackHighlight(`    ${stack.name}  (Tracks: ${stack.sourceBranch})`)));
+                    let stackHighlight = sameStack
+                        ? (t) => chalk_1.default.whiteBright(chalk_1.default.bgGreen(t))
+                        : (t) => chalk_1.default.white(t);
+                    this.logger.logLine("    " + stackHighlight(`${stack.name}  (Tracks: ${stack.sourceBranch})`));
                     for (const level of stack.levels) {
-                        const sameLevel = sameStack && level.levelNumber === ((_c = this._stackInfo.current) === null || _c === void 0 ? void 0 : _c.levelNumber);
-                        const levelHighlight = sameLevel ? chalk_1.default.greenBright : (t) => t;
                         if (level.levelNumber == 0)
                             continue;
-                        this.logger.logLine(chalk_1.default.gray(`        ` + levelHighlight(`${level.levelNumber.toString().padStart(3, "0")} ${level.label}`)));
+                        const sameLevel = sameStack && level.levelNumber === ((_c = this._stackInfo.current) === null || _c === void 0 ? void 0 : _c.levelNumber);
+                        const details = yield this.getLevelLabelDetails(level);
+                        let levelHighlight = (t) => chalk_1.default.green(t);
+                        if (((_d = details.pr) === null || _d === void 0 ? void 0 : _d.state) !== "open")
+                            levelHighlight = chalk_1.default.blackBright;
+                        if (sameLevel)
+                            levelHighlight = (t) => chalk_1.default.whiteBright(chalk_1.default.bgGreen(t));
+                        this.logger.logLine(`        ` + levelHighlight(`${details.id} ${details.label}`));
                     }
                 }
             }
@@ -147,13 +247,15 @@ class CommandHandler {
             for (const level of stack.levels) {
                 if (level.levelNumber == 0)
                     continue;
-                const levelText = `${level.levelNumber.toString().padStart(3, "0")} ${level.label}`;
+                const details = yield this.getLevelLabelDetails(level);
+                const levelText = `${details.id} ${details.label}`;
+                let highlight = (t) => chalk_1.default.gray(t);
+                let prefix = "        ";
                 if (level.levelNumber === this._stackInfo.current.levelNumber) {
-                    this.logger.logLine(chalk_1.default.whiteBright("    --> " + levelText));
+                    highlight = (t) => chalk_1.default.whiteBright(t);
+                    prefix = "    --> ";
                 }
-                else {
-                    this.logger.logLine(chalk_1.default.gray("        " + levelText));
-                }
+                this.logger.logLine(highlight(prefix + levelText));
             }
         });
     }
@@ -242,7 +344,7 @@ class CommandHandler {
                     currentPr = existingPRs[0];
                 }
                 if (existingPRs.length > 1) {
-                    this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].id}`);
+                    this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].number}`);
                 }
             }
             const commitInfo = yield this._stackInfo.getCommitInfo();

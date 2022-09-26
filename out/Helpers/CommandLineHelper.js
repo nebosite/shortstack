@@ -177,6 +177,7 @@ class CommandLineOptionsClass {
     constructor() {
         this.showHelp = false;
         this.validationErrors = undefined;
+        this.flagHandlers = new Map();
         this.positionIndex = -1;
         //------------------------------------------------------------------------------
         // Add an error to the validation errors
@@ -213,12 +214,12 @@ class CommandLineOptionsClass {
     // Process an options object with decorated members using the argument list
     //------------------------------------------------------------------------------
     prepareHandlers(reportError) {
+        var _a;
         if (this.positionalHandlers)
             return;
         const parameters = getParameters(this);
         this.positionalHandlers = new Array();
         this.positionalNames = new Array();
-        this.flagHandlers = new Map();
         const options = this;
         for (const parameter of parameters.values()) {
             switch (parameter.type) {
@@ -230,14 +231,11 @@ class CommandLineOptionsClass {
                     this.positionalNames.push(parameter.propertyName);
                     break;
                 case ParameterType.Flag:
-                    if (parameter.alternateNames) {
-                        for (const name of parameter.alternateNames) {
-                            this.flagHandlers.set(name.toLowerCase(), () => { options[parameter.propertyName] = true; });
-                        }
-                    }
-                    else {
-                        this.flagHandlers.set(parameter.propertyName.toLowerCase(), () => { options[parameter.propertyName] = true; });
-                    }
+                    const nameList = [parameter.propertyName];
+                    nameList.push(...((_a = parameter.alternateNames) !== null && _a !== void 0 ? _a : []));
+                    nameList.forEach(n => {
+                        this.flagHandlers.set(n.toLowerCase(), () => { options[parameter.propertyName] = true; });
+                    });
                     break;
                 case ParameterType.Environment:
                     let envNames = [parameter.propertyName];
@@ -276,13 +274,13 @@ class CommandLineOptionsClass {
                         if (!chosenSubCommand) {
                             chosenSubCommand = subCommands.find(c => c.commandName.toLowerCase() == arg.toLowerCase());
                             if (!chosenSubCommand) {
-                                reportError(parameter.propertyName, `Unknown option: ${arg}`);
+                                reportError(parameter.propertyName, `Unknown ${parameter.propertyName} option: ${arg}`);
                                 return false;
                             }
                             options[parameter.propertyName] = chosenSubCommand;
                             return true; // We could process this, so keep parsing options
                         }
-                        return chosenSubCommand.processNextParameter(arg, false, reportError);
+                        return chosenSubCommand.processNextParameter(arg, true, reportError);
                     });
                     this.positionalNames.push(parameter.propertyName);
                     break;
@@ -324,7 +322,7 @@ class CommandLineOptionsClass {
             }
             else {
                 if (reportUnknownParameter)
-                    reportError(parameterName, "Unknown parameter");
+                    reportError(parameterName, `Unknown ${this.commandName} parameter`);
                 return false;
             }
         }
@@ -427,7 +425,7 @@ function showUsage(options, printLine) {
         const flagUsage = (arg) => {
             let flags = "-" + arg.propertyName;
             if (arg.alternateNames) {
-                flags = "-" + arg.alternateNames.join("|-");
+                flags += "|-" + arg.alternateNames.join("|-");
             }
             return flags;
         };
@@ -466,7 +464,7 @@ function showUsage(options, printLine) {
                 case ParameterType.Environment:
                     let envNames = [parameter.propertyName];
                     if (parameter.alternateNames && parameter.alternateNames.length > 0) {
-                        envNames = parameter.alternateNames;
+                        parameter.alternateNames.forEach(n => envNames.push(n));
                     }
                     details.push(envNames.join("|"));
                     details.push("    " + parameter.description);

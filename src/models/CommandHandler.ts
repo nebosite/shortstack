@@ -1,10 +1,11 @@
-import { ShortStackGoOptions, ShortStackListOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackGoOptions, ShortStackListOptions, ShortStackMergeOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo, StackItem} from "./Stack"
 import chalk from "chalk";
 import { GitFactory, GitPullRequest, GitRemoteRepo } from "../Helpers/Githelper";
 import { ILogger } from "../Helpers/logger"
 import open from 'open';
+import * as ping from "ping"
 
 export class ShortStackError extends Error{ }
 export class CommandHandler 
@@ -80,6 +81,20 @@ export class CommandHandler
 
         this._gitBaseURL =  `https://${host}/${repoParent}/${repoName}`
 
+        try {
+            await new Promise<void>((resolve, reject) => {
+                ping.sys.probe(host, function(isAlive, err){
+                        if(!isAlive) reject()
+                        resolve();
+                    },  { timeout: 3 });
+            })            
+        }
+        catch(err) {
+            throw new ShortStackError(`Could not reach github server: ${host}`)
+        }
+
+        
+        
         this._stackInfo = await StackInfo.Create(this._git, this.currentBranch as string);
 
         const envTokenName = "SHORTSTACK_GIT_TOKEN_" + host.replace(/\./g, "_")
@@ -134,7 +149,83 @@ export class CommandHandler
 
     }
 
+    //--------------------------------------------------------------------------------------
+    // 
+    //--------------------------------------------------------------------------------------
+    async getLevelLabelDetails(level: StackItem) {
+        const info = await this.getGitInfo(level)
+        const id = level.levelNumber.toString().padStart(3,"0")
+        const label = info.currentPr 
+                ? `${info.currentPr.title} (${info.currentPr.state})` 
+                : "** Active **"
+  
+        return {
+            pr: info.currentPr,
+            commits: info.commitInfo,
+            id,
+            label,
+        }
+    }
+    //------------------------------------------------------------------------------
+    // merge - make the stack consistent
+    //------------------------------------------------------------------------------
+    async merge(options: ShortStackMergeOptions) 
+    {
+        await this._initTask;
+        await this.checkForDanglingWork(true);
+        this.assertCurrentStack();
     
+        const stack = this._stackInfo!.current!.parent;
+        this.logger.logLine(`MERGING ${stack.name}`)
+
+        for(let stackLevel = 1; stackLevel < stack.levels.length; stackLevel++) {
+            const level = stack.levels[stackLevel]
+            let previousBranch = stackLevel === 1
+                ? level.parent.sourceBranch
+                : level.previousBranchName;
+
+            try {
+                // only pull from the source branch if the full flag is given
+                if(stackLevel > 1 || options.full) {
+                    this.logger.logLine(`    LEVEL ${level.levelNumber}`)
+                    this.logger.logLine(`        Checkout ${previousBranch}`)
+                    const checkoutResponse = await this._git.checkout([previousBranch])
+                    this.logger.logLine(`            ${checkoutResponse.split("\n")[0]}`)
+                    
+                    this.logger.logLine(`        pull`)
+                    const pullResponse = await this._git.pull()
+                    this.logger.logLine(`            Pulled ${pullResponse.summary.changes} changes, ${pullResponse.summary.deletions} deletions, ${pullResponse.summary.insertions} insertions`)
+
+                    this.logger.logLine(`        Checkout ${level.branchName}`)
+                    const checkoutResponse2 = await this._git.checkout([level.branchName])
+                    this.logger.logLine(`            ${checkoutResponse2.split("\n")[0]}`)
+                    
+                    this.logger.logLine(`        merge  ${previousBranch}`)
+                    const mergeResponse = await this._git.merge([previousBranch])
+                    this.logger.logLine(`            ${mergeResponse.result}`)
+                    if(mergeResponse.result !== "success")  throw Error("Cannot auto-merge")
+                }
+                else {
+                    this.logger.logLine(`        Checkout ${level.branchName}`)
+                    const checkoutResponse2 = await this._git.checkout([level.branchName])
+                    this.logger.logLine(`            ${checkoutResponse2.split("\n")[0]}`)                 
+                }
+                this.logger.logLine(`        push origin ${level.branchName}`)
+                const pushResponse = await this._git.push(["origin", level.branchName])
+                if(pushResponse.remoteMessages.all.length === 0) {
+                    this.logger.logLine(`            success`)
+                }
+                else {
+                    throw Error(pushResponse.remoteMessages.all.join("\n"))
+                }
+            }
+            catch(err) {
+                this.logger.logLine(chalk.yellowBright(`${err}.\nPlease fix by hand and rerun the command.`))
+                return;
+            }
+        }
+    }
+
     //------------------------------------------------------------------------------
     // list - show existing stacks
     //------------------------------------------------------------------------------
@@ -149,16 +240,22 @@ export class CommandHandler
             for(const stack of this._stackInfo!.stacks) {
 
                 const sameStack = stack.name === this._stackInfo!.current?.parent?.name
-                const stackHighlight = sameStack ? chalk.greenBright : (t: string) => t
+                let stackHighlight = sameStack 
+                    ? (t:string) => chalk.whiteBright(chalk.bgGreen(t)) 
+                    : (t: string) => chalk.white(t) 
                 
-                this.logger.logLine(chalk.gray(stackHighlight(`    ${stack.name}  (Tracks: ${stack.sourceBranch})`)));
+                this.logger.logLine("    " + stackHighlight(`${stack.name}  (Tracks: ${stack.sourceBranch})`));
                 for(const level of stack.levels)
                 {
-                    const sameLevel = sameStack && level.levelNumber === this._stackInfo!.current?.levelNumber
-                    const levelHighlight = sameLevel ? chalk.greenBright : (t: string) => t
-    
                     if(level.levelNumber == 0) continue;
-                    this.logger.logLine(chalk.gray(`        ` + levelHighlight(`${level.levelNumber.toString().padStart(3,"0")} ${level.label}`)))
+                    const sameLevel = sameStack && level.levelNumber === this._stackInfo!.current?.levelNumber
+                    const details = await this.getLevelLabelDetails(level);
+                    let levelHighlight = (t:string) => chalk.green(t)
+
+                    if(details.pr?.state !== "open") levelHighlight = chalk.blackBright;
+                    if(sameLevel) levelHighlight =  (t: string) => chalk.whiteBright(chalk.bgGreen(t)) 
+                    
+                    this.logger.logLine(`        ` + levelHighlight(`${details.id} ${details.label}`))
                 }
             }
         }
@@ -178,13 +275,18 @@ export class CommandHandler
         for(const level of stack.levels)
         {
             if(level.levelNumber == 0) continue;
-            const levelText = `${level.levelNumber.toString().padStart(3,"0")} ${level.label}`
+            const details = await this.getLevelLabelDetails(level);
+            const levelText = `${details.id} ${details.label}`
+
+            let highlight = (t: string) => chalk.gray(t);
+            let prefix = "        "
+
             if(level.levelNumber === this._stackInfo!.current!.levelNumber) {
-                this.logger.logLine(chalk.whiteBright("    --> " + levelText))
+                highlight =  (t: string) => chalk.whiteBright(t);
+                prefix = "    --> " 
             }
-            else {
-                this.logger.logLine(chalk.gray       ("        " + levelText))
-            }
+
+            this.logger.logLine(highlight( prefix + levelText))
         }
     }
 
@@ -280,7 +382,7 @@ export class CommandHandler
                 currentPr = existingPRs[0]
             }
             if(existingPRs.length > 1) {
-                this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].id}`)
+                this.logger.logWarning(`Warning: there is more than 1 PR for this stack level.  Using: ${existingPRs[0].number}`)
             }
         }
 

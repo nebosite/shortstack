@@ -242,7 +242,7 @@ export abstract class CommandLineOptionsClass {
 
     positionalHandlers?: Array<(v: string) => boolean>;
     positionalNames?: Array<string>;
-    flagHandlers?: Map<string, () => void>;
+    flagHandlers = new Map<string, () => void>();
     private positionIndex = -1;
 
     //------------------------------------------------------------------------------
@@ -255,7 +255,6 @@ export abstract class CommandLineOptionsClass {
 
         this.positionalHandlers = new Array<(v: string) => boolean>();
         this.positionalNames = new Array<string>();
-        this.flagHandlers = new Map<string, () => void>();
         
         const options = this as any;
 
@@ -270,17 +269,12 @@ export abstract class CommandLineOptionsClass {
                     this.positionalNames.push(parameter.propertyName);
                     break;
                 case  ParameterType.Flag: 
-                    if(parameter.alternateNames)
-                    {
-                        for(const name of parameter.alternateNames)
-                        {
-                            this.flagHandlers.set(name.toLowerCase(), () => {options[parameter.propertyName] = true});
-                        }
-                    }
-                    else 
-                    {
-                        this.flagHandlers.set(parameter.propertyName.toLowerCase(), () => {options[parameter.propertyName] = true});
-                    }
+                    const nameList = [parameter.propertyName]
+                    nameList.push(...(parameter.alternateNames ?? []))
+                    nameList.forEach(n => {
+                        this.flagHandlers.set(n.toLowerCase(), () => {options[parameter.propertyName] = true})
+                    })
+
                     break;
                 case ParameterType.Environment:
                     let envNames = [parameter.propertyName];
@@ -325,13 +319,13 @@ export abstract class CommandLineOptionsClass {
                         if(!chosenSubCommand) {
                             chosenSubCommand = subCommands.find(c => c.commandName.toLowerCase() == arg.toLowerCase());
                             if(!chosenSubCommand) {
-                                 reportError(parameter.propertyName, `Unknown option: ${arg}`);
+                                 reportError(parameter.propertyName, `Unknown ${parameter.propertyName} option: ${arg}`);
                                  return false;
                             }
                             options[parameter.propertyName] = chosenSubCommand; 
                             return true; // We could process this, so keep parsing options
                         }
-                        return chosenSubCommand.processNextParameter(arg, false, reportError);});
+                        return chosenSubCommand.processNextParameter(arg, true, reportError);});
                     this.positionalNames.push(parameter.propertyName);
                     break;
                 default: 
@@ -378,7 +372,7 @@ export abstract class CommandLineOptionsClass {
                 return true;
             }
             else {
-                if(reportUnknownParameter) reportError(parameterName, "Unknown parameter");
+                if(reportUnknownParameter) reportError(parameterName, `Unknown ${this.commandName} parameter`);
                 return false;
             }
         }
@@ -504,7 +498,7 @@ function showUsage(options: any, printLine: (text: string) => void)
 
             if(arg.alternateNames)
             {
-                flags = "-" + arg.alternateNames.join("|-");
+                flags += "|-" + arg.alternateNames.join("|-");
             }
             return flags;
         }
@@ -545,7 +539,7 @@ function showUsage(options: any, printLine: (text: string) => void)
                     let envNames = [parameter.propertyName];
                     if(parameter.alternateNames && parameter.alternateNames.length > 0)
                     {
-                        envNames = parameter.alternateNames
+                        parameter.alternateNames.forEach(n => envNames.push(n))
                     }
                     details.push(envNames.join("|"))
                     details.push("    " + parameter.description);
