@@ -49,7 +49,6 @@ export interface GitReview
     submitted_at: string;
     commit_id: string;
 }
-
 export interface GitComment
 {
     url: string;
@@ -234,6 +233,8 @@ interface GitSearchResponse
     incomplete_results: boolean;
     items: any[];
 }
+
+
 
 //------------------------------------------------------------------------------
 // Convenient Factory for getting git objects
@@ -440,6 +441,18 @@ export class GitRemoteRepo
         const response = await this._gitApiHelper.restGet<GitSearchResponse>(`${this.searchApi}${query}`);
         if(!response) return null;
         return response.items as GitPullRequest[];
+    }
+
+    //------------------------------------------------------------------------------
+    // Get PR Reviews
+    //------------------------------------------------------------------------------
+    async getReviews(pr: GitPullRequest) : Promise<GitReview[]>
+    {
+        let query = `${this.repoApi}/pulls/${pr.number}/reviews`;
+
+        const response = await this._gitApiHelper.restGet<GitReview[]>(query);
+        if(!response) return [];
+        return response;
     }
 
     //------------------------------------------------------------------------------

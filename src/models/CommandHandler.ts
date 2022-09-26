@@ -1,4 +1,4 @@
-import { ShortStackGoOptions, ShortStackListOptions, ShortStackMergeOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackFinishOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackMergeOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo, StackItem} from "./Stack"
 import chalk from "chalk";
@@ -151,6 +151,138 @@ export class CommandHandler
             label,
         }
     }
+
+        
+    //------------------------------------------------------------------------------
+    // finish - Merge the whole stack as a single PR back to source branch
+    //------------------------------------------------------------------------------
+    async finish(options: ShortStackFinishOptions) 
+    {
+        await this._initTask;
+        await this.checkForDanglingWork(true);
+        this.assertCurrentStack();
+    
+        const stack = this._stackInfo!.current!.parent;
+        this.logger.logLine(`FINISHING ${stack.name}`)
+
+        this.logger.logLine("    Checking the stack for readiness...")
+        let totalErrorCount = 0;
+        let syncErrors = 0;
+        let approvalErrors = 0;
+        const reviewerList = new Map<string, string>()
+        const prInfo: {level: number, id: number, title: string, url: string}[] = []
+
+
+        await this._git.checkout([stack.sourceBranch])
+        let statusResponse = await this._git.status()
+
+
+        for(let stackLevel = 1; stackLevel < stack.levels.length; stackLevel++) {
+            let errorCount = 0;
+            const err = (message: string) => {
+                errorCount++;
+                totalErrorCount++;
+                this.logger.logLine("        " + chalk.redBright(message));
+            }
+
+            if(stackLevel === 1) {
+                if(statusResponse.ahead || statusResponse.behind) {
+                    err(`Source branch ${stack.sourceBranch} is not in sync with origin. (+${statusResponse.ahead},-${statusResponse.behind})`)
+                    syncErrors++;
+                }
+            }
+
+            const level = stack.levels[stackLevel]
+
+            this.logger.logLine(`    LEVEL ${level.levelNumber}`)
+            this._git.checkout([level.branchName])
+            statusResponse = await this._git.status()
+            if(statusResponse.ahead || statusResponse.behind) {
+                err(`branch ${level.branchName} is not in sync with origin. (+${statusResponse.ahead},-${statusResponse.behind})`)
+                syncErrors++;
+            }
+
+            const {currentPr} = await this.getGitInfo(level);
+            if(!currentPr) {
+                err("No PR found for this level (Delete this branch or use 'shortstack push' to create a PR)")
+            }
+            else {
+                const url = `${this._gitBaseURL}/pull/${currentPr.number}`
+                prInfo.push({level: stackLevel, id: currentPr.number, title: currentPr.title, url})
+                const reviews = await this._remoteRepo?.getReviews(currentPr);
+                let approvers: string[] = []
+                let otherStates: string[] = []
+                reviews?.forEach(r => {
+                    reviewerList.set(r.user.login, "")
+                    switch(r.state) {
+                        case "APPROVED": approvers.push(r.user.login); break;
+                        case "COMMENTED": break;
+                        default: otherStates.push(`${r.state} by ${r.user.login}`)
+                    }
+                })
+
+                if(approvers.length === 0) {
+                    err(`The PR has not been approved. (${url})`)
+                    approvalErrors++;
+                }
+                else {
+                    this.logger.logLine(`        ` + `Approved by ${approvers.join(", ")}` + "  " + chalk.yellowBright(`${otherStates.join(",")}`))
+                }
+            }
+
+            if(!errorCount) {
+                this.logger.logLine("        " + chalk.greenBright("READY"))
+            }
+        }
+       
+        if(totalErrorCount) {
+            const message = [ "This stack is not ready for finishing."]
+            if(syncErrors) message.push("To fix sync issues, run 'shortstack merge -full`")
+            if(approvalErrors) message.push("Make sure all PRs are approved.")
+
+            this.logger.logLine(chalk.redBright(message.join("\n")))
+            return;
+        }
+
+        this.logger.logLine("    Preparing final PR...")
+
+        // create a new stack level
+        stack.AddLevel()
+
+        let description = `Finished Stack: ${stack.name}\n\n`
+            + "This is a stacked pull request built from the list of smaller, approved pull requests listed below. "
+            + "This PR does not need an extensive code review because the smaller parts have already been reviewed.  "
+            + "Please click on the individual pull requests to see reviewer notes.\n\n "
+            
+        prInfo.forEach(pr => {
+            description += `* [${pr.title}](${pr.url})\n`
+        })
+        const title = `Finished Stack: ${stack.name}` 
+
+        const reviewerText = this._git.getConfig("shortstack.reviewers", "local")
+                            ?? this._git.getConfig("shortstack.reviewers", "global")
+        if(reviewerText) {
+            ((await reviewerText).value)?.split(",").forEach(r => reviewerList.set(r,""))
+        }
+
+        const reviewers = Array.from(reviewerList.keys())
+
+        const newPR = await this._remoteRepo?.createPullRequest(
+            title, 
+            description, 
+            stack.currentLevel!.branchName, 
+            stack.sourceBranch,
+            reviewers
+        )
+        if(!newPR) throw new ShortStackError("Could not create a new pull request.")
+        const prNumber = newPR?.number ?? 0;
+
+
+        const prURL = `${this._gitBaseURL}/pull/${prNumber}`
+        this.logger.logLine(`Opening PR: ${prURL}`)
+
+    }
+
     //------------------------------------------------------------------------------
     // merge - make the stack consistent
     //------------------------------------------------------------------------------

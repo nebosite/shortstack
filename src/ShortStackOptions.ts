@@ -34,6 +34,14 @@ export class ShortStackGoOptions extends SubOptions {
 }
 
 //------------------------------------------------------------------------------
+// finish command options
+//------------------------------------------------------------------------------
+export class ShortStackFinishOptions extends SubOptions { 
+    commandName= "finish"
+    shortDescription= `Take the full stack as a single PR back to the source branch`
+}
+
+//------------------------------------------------------------------------------
 // merge command options
 //------------------------------------------------------------------------------
 export class ShortStackMergeOptions extends SubOptions { 
@@ -51,7 +59,6 @@ export class ShortStackListOptions extends SubOptions {
     commandName= "list"
     shortDescription= `List available stacks`
 }
-
 //------------------------------------------------------------------------------
 // status command options
 //------------------------------------------------------------------------------
@@ -59,7 +66,6 @@ export class ShortStackStatusOptions extends SubOptions {
     commandName= "status"
     shortDescription= "Show the status of the current stack"
 }
-
 
 //------------------------------------------------------------------------------
 // purge command options
@@ -142,7 +148,8 @@ export class ShortStackOptions extends CommandLineOptionsClass {
             ShortStackStatusOptions, 
             ShortStackPurgeOptions,
             ShortStackPushOptions,
-            ShortStackNextOptions
+            ShortStackNextOptions,
+            ShortStackFinishOptions
         ]
     })
     action?: CommandLineOptionsClass;

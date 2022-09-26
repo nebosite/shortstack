@@ -5,13 +5,15 @@ TODO
     [x] go - go to a stack
     [x] Slightly more details in the help to explain steps
     [x] Specify assignees in git config   [shortstack] reviewers
-    [ ] SS: Bug: Stack names are wrong - should derive from PR
-    [ ] SS: Bug: Multi-commit picks the most recent commit for the title - should pick oldest
-    [ ] SS: identify when the associated PR is closed
-    [ ] ss merge
+    [x] SS: Bug: Stack names are wrong - should derive from PR
+    [x] SS: Bug: Multi-commit picks the most recent commit for the title - should pick oldest
+    [x] SS: identify when the associated PR is closed
+    [x] ss merge
         merges the entire stack (possibly using rebase)
     [ ] finish
-        [ ] Create a final 
+        [ ] Create a final PR going back to source branch
+        [ ] Include links to all existing PRs in the stack + verbiage about already being reviewed
+        
     [ ] Set up for debugging, document it
 
 

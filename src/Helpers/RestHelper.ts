@@ -40,7 +40,7 @@ export interface IRestHelper
 //------------------------------------------------------------------------------
 export class RestHelper implements IRestHelper
 {
-    _headers: string[][] = [];
+    _headers: any = {};
     apiRoot: string;
     _cache: ILocalStorage | undefined;
 
@@ -65,7 +65,7 @@ export class RestHelper implements IRestHelper
     //------------------------------------------------------------------------------
     addHeader(name: string, value:string)
     {
-        this._headers.push([name, value]);
+        this._headers[name] = value; 
     }
 
     //------------------------------------------------------------------------------
@@ -125,11 +125,11 @@ export class RestHelper implements IRestHelper
             if(cachedString) return cachedString.data;
         }
 
-        const request = { method: method, body: jsonBody, headers: this._headers };
+        const config = { method: method, body: jsonBody, headers: this._headers };
 
         //console.log("REQUEST: " + JSON.stringify(request));
 
-        return fetch(url, request)
+        return fetch(url, config)
             .then(async(response: HttpResponse) => {
                 if(response.status === 301)
                 {
