@@ -1,4 +1,4 @@
-import { ShortStackFinishOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackMergeOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
+import { ShortStackFetchOptions, ShortStackFinishOptions, ShortStackGoOptions, ShortStackListOptions, ShortStackMergeOptions, ShortStackNewOptions, ShortStackNextOptions, ShortStackPurgeOptions, ShortStackPushOptions, ShortStackStatusOptions } from "../ShortStackOptions";
 import simpleGit, {SimpleGit, SimpleGitOptions} from 'simple-git';
 import {StackInfo, StackItem} from "./Stack"
 import chalk from "chalk";
@@ -389,6 +389,61 @@ export class CommandHandler
                     
                     this.logger.logLine(`        ` + levelHighlight(`${details.id} ${details.label}`))
                 }
+            }
+        }
+    }
+
+    //------------------------------------------------------------------------------
+    // fetch - get stacks from origin
+    //------------------------------------------------------------------------------
+    async fetch(options: ShortStackFetchOptions) 
+    {
+        await this._initTask;
+        await this.checkForDanglingWork(true);
+
+        const remoteStacks = new Map<string, string[]>()
+        const result = await this._git.branch(["-l","-a"])
+        for(let branchName of result.all) {
+            const match = branchName.match(/remotes\/origin\/(.+)\/\d\d\d/i)
+            if(match) {
+                const name = match[1]
+                if(!remoteStacks.has(name)) {
+                    remoteStacks.set(name, [])
+                }
+                remoteStacks.get(name)!.push(branchName.replace("remotes/origin/", ""))
+            }
+        }
+
+        if(!options.stackName) {
+            this.logger.logLine("Finding stacks available...")
+            Array.from(remoteStacks.keys()).forEach(s => this.logger.logLine(`    ${s} (${remoteStacks.get(s)!.length-1} levels)`))
+            if(remoteStacks.size === 0) {
+                this.logger.logLine(chalk.yellowBright("    No stacks were found on the remote repo."))
+            }
+
+            this.logger.logLine("Run 'shortstack fetch [stackname]' to retrieve remote stack.")
+        }
+        else {
+            this.logger.logLine(`Fetching remote stack ${options.stackName}`)
+            const levels = remoteStacks.get(options.stackName)
+            if(!levels) {
+                throw new ShortStackError(`'${options.stackName}' is not a known stack name.  Run 'shortstack fetch' to see a list of available stacks.`)
+            }
+            for(let level of levels) {
+                this.logger.logLine(`    ${level}`)
+                const checkoutResponse = await this._git.checkout([level])
+                if(checkoutResponse != "" && !checkoutResponse.match(/(up to date|branch is behind|set up to track)/ig)) {
+                    this.logger.logError(`        Checkout error: ${checkoutResponse}`)
+                }
+                else {
+                    const pullResponse = await this._git.pull()
+                    const remoteMessages = pullResponse.remoteMessages.all.join("\n        ")
+                    if(remoteMessages != "") {
+                        this.logger.logError(`        Pull error: ${remoteMessages}`)
+                    }
+                }
+
+                this.logger.logLine("It might be a good idea to run 'shortstack merge' to make sure stack is consistent.")
             }
         }
     }

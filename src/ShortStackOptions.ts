@@ -42,6 +42,17 @@ export class ShortStackFinishOptions extends SubOptions {
 }
 
 //------------------------------------------------------------------------------
+// fetch command options
+//------------------------------------------------------------------------------
+export class ShortStackFetchOptions extends SubOptions { 
+    commandName= "fetch"
+    shortDescription= `Bring in a stack from the remote repo`
+
+    @positionalParameter({description: "Name of the stack to fetch."})
+    stackName: string | null = null;
+}
+
+//------------------------------------------------------------------------------
 // merge command options
 //------------------------------------------------------------------------------
 export class ShortStackMergeOptions extends SubOptions { 
@@ -149,6 +160,7 @@ export class ShortStackOptions extends CommandLineOptionsClass {
             ShortStackPurgeOptions,
             ShortStackPushOptions,
             ShortStackNextOptions,
+            ShortStackFetchOptions,
             ShortStackFinishOptions
         ]
     })
