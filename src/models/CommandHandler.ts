@@ -443,8 +443,8 @@ export class CommandHandler
                     }
                 }
 
-                this.logger.logLine("It might be a good idea to run 'shortstack merge' to make sure stack is consistent.")
             }
+            this.logger.logLine("It might be a good idea to run 'shortstack merge' to make sure stack is consistent.")
         }
     }
 

@@ -398,8 +398,8 @@ class CommandHandler {
                             this.logger.logError(`        Pull error: ${remoteMessages}`);
                         }
                     }
-                    this.logger.logLine("It might be a good idea to run 'shortstack merge' to make sure stack is consistent.");
                 }
+                this.logger.logLine("It might be a good idea to run 'shortstack merge' to make sure stack is consistent.");
             }
         });
     }
