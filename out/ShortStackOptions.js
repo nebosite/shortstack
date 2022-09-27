@@ -53,6 +53,32 @@ __decorate([
 ], ShortStackGoOptions.prototype, "level", void 0);
 exports.ShortStackGoOptions = ShortStackGoOptions;
 //------------------------------------------------------------------------------
+// finish command options
+//------------------------------------------------------------------------------
+class ShortStackFinishOptions extends SubOptions {
+    constructor() {
+        super(...arguments);
+        this.commandName = "finish";
+        this.shortDescription = `Take the full stack as a single PR back to the source branch`;
+    }
+}
+exports.ShortStackFinishOptions = ShortStackFinishOptions;
+//------------------------------------------------------------------------------
+// fetch command options
+//------------------------------------------------------------------------------
+class ShortStackFetchOptions extends SubOptions {
+    constructor() {
+        super(...arguments);
+        this.commandName = "fetch";
+        this.shortDescription = `Bring in a stack from the remote repo`;
+        this.stackName = null;
+    }
+}
+__decorate([
+    CommandLineHelper_1.positionalParameter({ description: "Name of the stack to fetch." })
+], ShortStackFetchOptions.prototype, "stackName", void 0);
+exports.ShortStackFetchOptions = ShortStackFetchOptions;
+//------------------------------------------------------------------------------
 // merge command options
 //------------------------------------------------------------------------------
 class ShortStackMergeOptions extends SubOptions {
@@ -194,7 +220,9 @@ __decorate([
             ShortStackStatusOptions,
             ShortStackPurgeOptions,
             ShortStackPushOptions,
-            ShortStackNextOptions
+            ShortStackNextOptions,
+            ShortStackFetchOptions,
+            ShortStackFinishOptions
         ]
     })
 ], ShortStackOptions.prototype, "action", void 0);

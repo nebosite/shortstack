@@ -65,13 +65,26 @@ class CommandHandler {
             if (!originLine) {
                 throw new ShortStackError("Could not find origin info from remote -v.  Is this directory in a repo?");
             }
-            const gitMatch = originLine.match(/\w+?\s+(\w+)@([^:]+):([^\/]+)\/(.*).git/);
-            if (!gitMatch) {
-                throw new ShortStackError("Could not find remoteInfo for this git repo.");
+            let gitMatch = originLine.match(/\w+?\s+(\w+)@([^:]+):([^\/]+)\/(.*).git/i);
+            let host = "unknown";
+            let repoParent = "unknown";
+            let repoName = "unknown";
+            if (gitMatch) {
+                host = `${gitMatch[2]}`;
+                repoParent = `${gitMatch[3]}`;
+                repoName = `${gitMatch[4]}`;
             }
-            const host = `${gitMatch[2]}`;
-            const repoParent = `${gitMatch[3]}`;
-            const repoName = `${gitMatch[4]}`;
+            if (!gitMatch) {
+                gitMatch = originLine.match(/https.*\/\/(.+?)\/(.+)\/(.*)\.git/i);
+                if (gitMatch) {
+                    host = `${gitMatch[1]}`;
+                    repoParent = `${gitMatch[2]}`;
+                    repoName = `${gitMatch[3]}`;
+                }
+            }
+            if (!gitMatch) {
+                throw new ShortStackError(`Could not find remoteInfo for this git repo. (${originLine})`);
+            }
             this._gitBaseURL = `https://${host}/${repoParent}/${repoName}`;
             try {
                 yield new Promise((resolve, reject) => {
@@ -143,6 +156,111 @@ class CommandHandler {
                 id,
                 label,
             };
+        });
+    }
+    //------------------------------------------------------------------------------
+    // finish - Merge the whole stack as a single PR back to source branch
+    //------------------------------------------------------------------------------
+    finish(options) {
+        var _a, _b, _c, _d, _e;
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this._initTask;
+            yield this.checkForDanglingWork(true);
+            this.assertCurrentStack();
+            const stack = this._stackInfo.current.parent;
+            this.logger.logLine(`FINISHING ${stack.name}`);
+            this.logger.logLine("    Checking the stack for readiness...");
+            let totalErrorCount = 0;
+            let syncErrors = 0;
+            let approvalErrors = 0;
+            const reviewerList = new Map();
+            const prInfo = [];
+            yield this._git.checkout([stack.sourceBranch]);
+            let statusResponse = yield this._git.status();
+            for (let stackLevel = 1; stackLevel < stack.levels.length; stackLevel++) {
+                let errorCount = 0;
+                const err = (message) => {
+                    errorCount++;
+                    totalErrorCount++;
+                    this.logger.logLine("        " + chalk_1.default.redBright(message));
+                };
+                if (stackLevel === 1) {
+                    if (statusResponse.ahead || statusResponse.behind) {
+                        err(`Source branch ${stack.sourceBranch} is not in sync with origin. (+${statusResponse.ahead},-${statusResponse.behind})`);
+                        syncErrors++;
+                    }
+                }
+                const level = stack.levels[stackLevel];
+                this.logger.logLine(`    LEVEL ${level.levelNumber}`);
+                this._git.checkout([level.branchName]);
+                statusResponse = yield this._git.status();
+                if (statusResponse.ahead || statusResponse.behind) {
+                    err(`branch ${level.branchName} is not in sync with origin. (+${statusResponse.ahead},-${statusResponse.behind})`);
+                    syncErrors++;
+                }
+                const { currentPr } = yield this.getGitInfo(level);
+                if (!currentPr) {
+                    err("No PR found for this level (Delete this branch or use 'shortstack push' to create a PR)");
+                }
+                else {
+                    const url = `${this._gitBaseURL}/pull/${currentPr.number}`;
+                    prInfo.push({ level: stackLevel, id: currentPr.number, title: currentPr.title, url });
+                    const reviews = yield ((_a = this._remoteRepo) === null || _a === void 0 ? void 0 : _a.getReviews(currentPr));
+                    let approvers = [];
+                    let otherStates = [];
+                    reviews === null || reviews === void 0 ? void 0 : reviews.forEach(r => {
+                        reviewerList.set(r.user.login, "");
+                        switch (r.state) {
+                            case "APPROVED":
+                                approvers.push(r.user.login);
+                                break;
+                            case "COMMENTED": break;
+                            default: otherStates.push(`${r.state} by ${r.user.login}`);
+                        }
+                    });
+                    if (approvers.length === 0) {
+                        err(`The PR has not been approved. (${url})`);
+                        approvalErrors++;
+                    }
+                    else {
+                        this.logger.logLine(`        ` + `Approved by ${approvers.join(", ")}` + "  " + chalk_1.default.yellowBright(`${otherStates.join(",")}`));
+                    }
+                }
+                if (!errorCount) {
+                    this.logger.logLine("        " + chalk_1.default.greenBright("READY"));
+                }
+            }
+            if (totalErrorCount) {
+                const message = ["This stack is not ready for finishing."];
+                if (syncErrors)
+                    message.push("To fix sync issues, run 'shortstack merge -full`");
+                if (approvalErrors)
+                    message.push("Make sure all PRs are approved.");
+                this.logger.logLine(chalk_1.default.redBright(message.join("\n")));
+                return;
+            }
+            this.logger.logLine("    Preparing final PR...");
+            // create a new stack level
+            stack.AddLevel();
+            let description = `Finished Stack: ${stack.name}\n\n`
+                + "This is a stacked pull request built from the list of smaller, approved pull requests listed below. "
+                + "This PR does not need an extensive code review because the smaller parts have already been reviewed.  "
+                + "Please click on the individual pull requests to see reviewer notes.\n\n ";
+            prInfo.forEach(pr => {
+                description += `* [${pr.title}](${pr.url})\n`;
+            });
+            const title = `Finished Stack: ${stack.name}`;
+            const reviewerText = (_b = this._git.getConfig("shortstack.reviewers", "local")) !== null && _b !== void 0 ? _b : this._git.getConfig("shortstack.reviewers", "global");
+            if (reviewerText) {
+                (_c = ((yield reviewerText).value)) === null || _c === void 0 ? void 0 : _c.split(",").forEach(r => reviewerList.set(r, ""));
+            }
+            const reviewers = Array.from(reviewerList.keys());
+            const newPR = yield ((_d = this._remoteRepo) === null || _d === void 0 ? void 0 : _d.createPullRequest(title, description, stack.currentLevel.branchName, stack.sourceBranch, reviewers));
+            if (!newPR)
+                throw new ShortStackError("Could not create a new pull request.");
+            const prNumber = (_e = newPR === null || newPR === void 0 ? void 0 : newPR.number) !== null && _e !== void 0 ? _e : 0;
+            const prURL = `${this._gitBaseURL}/pull/${prNumber}`;
+            this.logger.logLine(`Opening PR: ${prURL}`);
         });
     }
     //------------------------------------------------------------------------------
@@ -230,6 +348,57 @@ class CommandHandler {
                             levelHighlight = (t) => chalk_1.default.whiteBright(chalk_1.default.bgGreen(t));
                         this.logger.logLine(`        ` + levelHighlight(`${details.id} ${details.label}`));
                     }
+                }
+            }
+        });
+    }
+    //------------------------------------------------------------------------------
+    // fetch - get stacks from origin
+    //------------------------------------------------------------------------------
+    fetch(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this._initTask;
+            yield this.checkForDanglingWork(true);
+            const remoteStacks = new Map();
+            const result = yield this._git.branch(["-l", "-a"]);
+            for (let branchName of result.all) {
+                const match = branchName.match(/remotes\/origin\/(.+)\/\d\d\d/i);
+                if (match) {
+                    const name = match[1];
+                    if (!remoteStacks.has(name)) {
+                        remoteStacks.set(name, []);
+                    }
+                    remoteStacks.get(name).push(branchName.replace("remotes/origin/", ""));
+                }
+            }
+            if (!options.stackName) {
+                this.logger.logLine("Finding stacks available...");
+                Array.from(remoteStacks.keys()).forEach(s => this.logger.logLine(`    ${s} (${remoteStacks.get(s).length - 1} levels)`));
+                if (remoteStacks.size === 0) {
+                    this.logger.logLine(chalk_1.default.yellowBright("    No stacks were found on the remote repo."));
+                }
+                this.logger.logLine("Run 'shortstack fetch [stackname]' to retrieve remote stack.");
+            }
+            else {
+                this.logger.logLine(`Fetching remote stack ${options.stackName}`);
+                const levels = remoteStacks.get(options.stackName);
+                if (!levels) {
+                    throw new ShortStackError(`'${options.stackName}' is not a known stack name.  Run 'shortstack fetch' to see a list of available stacks.`);
+                }
+                for (let level of levels) {
+                    this.logger.logLine(`    ${level}`);
+                    const checkoutResponse = yield this._git.checkout([level]);
+                    if (checkoutResponse != "" && !checkoutResponse.match(/(up to date|branch is behind|set up to track)/ig)) {
+                        this.logger.logError(`        Checkout error: ${checkoutResponse}`);
+                    }
+                    else {
+                        const pullResponse = yield this._git.pull();
+                        const remoteMessages = pullResponse.remoteMessages.all.join("\n        ");
+                        if (remoteMessages != "") {
+                            this.logger.logError(`        Pull error: ${remoteMessages}`);
+                        }
+                    }
+                    this.logger.logLine("It might be a good idea to run 'shortstack merge' to make sure stack is consistent.");
                 }
             }
         });

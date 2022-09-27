@@ -78,6 +78,12 @@ function main() {
                 case "next":
                     yield handler.next(options.action);
                     break;
+                case "fetch":
+                    yield handler.fetch(options.action);
+                    break;
+                case "finish":
+                    yield handler.finish(options.action);
+                    break;
                 default: throw new CommandHandler_1.ShortStackError(`Unknown action: ${options.action.commandName}`);
             }
             return 0;

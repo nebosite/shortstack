@@ -25,7 +25,7 @@ class RestHelper {
     // this is helpful for servers that use prefix text to reroute calls
     //------------------------------------------------------------------------------
     constructor(apiRoot, cache, callPrefix = "") {
-        this._headers = [];
+        this._headers = {};
         this._cache = cache;
         this.apiRoot = apiRoot;
         this._callPrefix = callPrefix;
@@ -34,7 +34,7 @@ class RestHelper {
     // Add a header to use on all of the calls
     //------------------------------------------------------------------------------
     addHeader(name, value) {
-        this._headers.push([name, value]);
+        this._headers[name] = value;
     }
     //------------------------------------------------------------------------------
     // Attempt a json conversions and throw useful text if there is an error
@@ -94,9 +94,9 @@ class RestHelper {
                 if (cachedString)
                     return cachedString.data;
             }
-            const request = { method: method, body: jsonBody, headers: this._headers };
+            const config = { method: method, body: jsonBody, headers: this._headers };
             //console.log("REQUEST: " + JSON.stringify(request));
-            return cross_fetch_1.default(url, request)
+            return cross_fetch_1.default(url, config)
                 .then((response) => __awaiter(this, void 0, void 0, function* () {
                 if (response.status === 301) {
                     throw new Error(`Got a 301 error.  The requesting URL (${url}) is wrong.  it should be: ${response.headers["location"]}`);

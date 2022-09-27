@@ -194,6 +194,18 @@ class GitRemoteRepo {
         });
     }
     //------------------------------------------------------------------------------
+    // Get PR Reviews
+    //------------------------------------------------------------------------------
+    getReviews(pr) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let query = `${this.repoApi}/pulls/${pr.number}/reviews`;
+            const response = yield this._gitApiHelper.restGet(query);
+            if (!response)
+                return [];
+            return response;
+        });
+    }
+    //------------------------------------------------------------------------------
     // Return the children of a specifice node path
     //------------------------------------------------------------------------------
     getNodeChildren(branchOrSha, path) {
