@@ -17,7 +17,9 @@ TODO
     [ ] Set up for debugging, document it
 
 
-NEW
+NEW    
+    [ ] SS: Landing as you go is important
+
     [ ] SS: regular user install is broken 'missing tsconfig.json'
     [ ] SS: Make the finalization easier
 
