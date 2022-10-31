@@ -39,6 +39,10 @@ export class ShortStackGoOptions extends SubOptions {
 export class ShortStackFinishOptions extends SubOptions { 
     commandName= "finish"
     shortDescription= `Take the full stack as a single PR back to the source branch`
+
+    @flagParameter({description: "Finish the stack even if some of the PRs are not approved", alternateNames: ["f"]})
+    force: string | null = null;
+
 }
 
 //------------------------------------------------------------------------------
@@ -58,6 +62,9 @@ export class ShortStackFetchOptions extends SubOptions {
 export class ShortStackMergeOptions extends SubOptions { 
     commandName= "merge"
     shortDescription= `merge changes from the top of the stack to the bottom so it is consistent`
+
+    @positionalParameter({description: "level of the stack to start from."})
+    startFrom: string | null = null;
 
     @flagParameter({description: "Pull in external changes from the source branch (ie: merge from main)", alternateNames: ["f"]})
     full: string | null = null;

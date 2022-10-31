@@ -18,6 +18,23 @@ TODO
 
 
 NEW    
+    [ ] SS:  need a way to push current changes backwards for when I accidentally go forward
+    [ ] SS: Merge should not attempt push if there is no PR for that level
+    [ ] SS: Error: This repository moved. Please use the new location:
+        - happens when the last item in the stack has no commits
+    [ ] SS: when merging from stuff that was done by another user
+        Error: To github.com:nebosite/clusterfun-server.git
+        !       refs/heads/eric/manifest/001:refs/heads/eric/manifest/001       [rejected] (non-fast-forward)
+        Done
+        Pushing to github.com:nebosite/clusterfun-server.git
+        error: failed to push some refs to 'github.com:nebosite/clusterfun-server.git'
+        hint: Updates were rejected because the tip of your current branch is behind
+        hint: its remote counterpart. Integrate the remote changes (e.g.
+        hint: 'git pull ...') before pushing again.
+        hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+        .
+        Please fix by hand and rerun the command.
+    [ ] Purge should show warnings for branches that are ahead of main
     [ ] SS: Landing as you go is important
 
     [ ] SS: regular user install is broken 'missing tsconfig.json'
