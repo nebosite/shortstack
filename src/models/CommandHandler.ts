@@ -140,7 +140,7 @@ export class CommandHandler
             this.logger.logLine("Setting up stack level 1...")
             await newStack.AddLevel();
             this.logger.logLine(chalk.greenBright("==================================="))
-            this.logger.logLine(chalk.greenBright("---  Your new statck is ready!  ---"))
+            this.logger.logLine(chalk.greenBright("---  Your new stack is ready!   ---"))
             this.logger.logLine(chalk.greenBright("==================================="))
         }
         else {
@@ -237,8 +237,13 @@ export class CommandHandler
                 })
 
                 if(approvers.length === 0) {
-                    err(`The PR has not been approved. (${url})`)
-                    approvalErrors++;
+                    if(options.force) {
+                        this.logger.logLine(`        ` + chalk.yellowBright(`WARNING: this PR was not approved.  Skipping because of -force`))
+                    }
+                    else {
+                        err(`The PR has not been approved. (${url})`)
+                        approvalErrors++;
+                    }
                 }
                 else {
                     this.logger.logLine(`        ` + `Approved by ${approvers.join(", ")}` + "  " + chalk.yellowBright(`${otherStates.join(",")}`))
@@ -310,7 +315,11 @@ export class CommandHandler
         const stack = this._stackInfo!.current!.parent;
         this.logger.logLine(`MERGING ${stack.name}`)
 
-        for(let stackLevel = 1; stackLevel < stack.levels.length; stackLevel++) {
+        let startLevel = options.startFrom ? Number.parseInt(options.startFrom) : 1
+        if(startLevel < 1) startLevel = 1;
+
+
+        for(let stackLevel = startLevel; stackLevel < stack.levels.length; stackLevel++) {
             const level = stack.levels[stackLevel]
             let previousBranch = stackLevel === 1
                 ? level.parent.sourceBranch
@@ -352,8 +361,10 @@ export class CommandHandler
                 }
             }
             catch(err) {
-                this.logger.logLine(chalk.yellowBright(`${err}.\nPlease fix by hand and rerun the command.`))
-                return;
+                if(`${err}`.indexOf("This repository moved") === -1) {
+                    this.logger.logLine(chalk.yellowBright(`${err}.\nPlease fix by hand and rerun the command.`))
+                    return;
+                }
             }
         }
     }
