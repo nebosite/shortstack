@@ -18,6 +18,10 @@ TODO
 
 
 NEW    
+    [ ] SS: "Your new statck is ready! "
+    [ ] SS: default on purge should be to purge remote. Add -notremote parameter
+        [ ] Purge should also close pull requests
+        [ ] Account for accidental syncs already in the remote
     [ ] SS: Landing as you go is important
 
     [ ] SS: regular user install is broken 'missing tsconfig.json'
